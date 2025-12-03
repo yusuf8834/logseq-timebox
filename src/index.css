@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@theme {
+  --color-logseq-cyan-low-saturation-50: #dddddd;
+  --color-logseq-cyan-low-saturation-100: #d0d2d3;
+  --color-logseq-cyan-low-saturation-200: #aabbc3;
+  --color-logseq-cyan-low-saturation-300: #8aa8b5;
+  --color-logseq-cyan-low-saturation-400: #6b91a0;
+  --color-logseq-cyan-low-saturation-500: #517d8e;
+  --color-logseq-cyan-low-saturation-600: #3a6a7a;
+  --color-logseq-cyan-low-saturation-700: #245462;
+  --color-logseq-cyan-low-saturation-800: #13414e;
+  --color-logseq-cyan-low-saturation-900: #002d38;
+  --color-logseq-cyan-low-saturation-950: #07252d;
+  --color-logseq-cyan-low-saturation-980: hsl(192.63, 80.08%, 8%);
+
+  --color-logseq-cyan-50: oklch(0.89 0.073 224.15);
+  --color-logseq-cyan-100: oklch(0.853 0.102 222.46);
+  --color-logseq-cyan-200: oklch(0.772 0.14 219.02);
+  --color-logseq-cyan-300: oklch(0.706 0.128 219.19);
+  --color-logseq-cyan-400: oklch(0.628 0.114 219.1);
+  --color-logseq-cyan-500: oklch(0.561 0.102 219.19);
+  --color-logseq-cyan-600: oklch(0.494 0.089 218.19);
+  --color-logseq-cyan-700: oklch(0.416 0.076 219.69);
+  --color-logseq-cyan-800: oklch(0.347 0.063 219.45);
+  --color-logseq-cyan-900: oklch(0.275 0.05 219.06);
+  --color-logseq-cyan-950: oklch(0.248 0.044 217.5);
+}
+

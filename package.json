@@ -1,0 +1,31 @@
+{
+  "name": "simple-logseq-sidebar",
+  "version": "0.1.0",
+  "type": "module",
+  "logseq": {
+    "id": "_simple_sidebar_plugin_2025"
+  },
+  "main": "dist/index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@logseq/libs": "^0.0.17",
+    "@tailwindcss/vite": "^4.1.16",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "tailwindcss": "^4.1.16"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.0",
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.4",
+    "magic-string": "^0.30.21",
+    "typescript": "~5.9.3",
+    "vite": "^7.1.7"
+  }
+}
+
