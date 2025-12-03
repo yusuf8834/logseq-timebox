@@ -27,11 +27,6 @@ const getSidebarWidth = () => {
   return sidebarWidth;
 };
 
-const setSidebarWidth = (width: number) => {
-  sidebarWidth = clampWidth(width);
-  persistWidth(sidebarWidth);
-};
-
 // Element ID
 const deriveProvidedElementId = (providedUiId: string) => {
   return `${applicationId}--${providedUiId}`;
@@ -186,14 +181,6 @@ const readStoredWidth = () => {
     return Number.isFinite(parsed) ? clampWidth(parsed) : defaultWidth;
   } catch {
     return defaultWidth;
-  }
-};
-
-const persistWidth = (width: number) => {
-  try {
-    getLocalStorage()?.setItem(sidebarWidthStorageKey, String(width));
-  } catch {
-    // noop
   }
 };
 
