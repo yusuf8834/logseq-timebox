@@ -661,6 +661,13 @@ export function CalendarView() {
             background-color: rgb(59 130 246);
             border-color: rgb(37 99 235);
           }
+          .fc-timegrid-now-indicator-line {
+            border-color: rgb(239 68 68);
+            border-width: 2px;
+          }
+          .fc-timegrid-now-indicator-arrow {
+            border-color: rgb(239 68 68);
+          }
         `}</style>
         <FullCalendar
           ref={calendarRef}
@@ -675,6 +682,7 @@ export function CalendarView() {
           editable={true}
           eventDurationEditable={true}
           eventStartEditable={true}
+          nowIndicator={true}
           slotLabelFormat={{
             hour: '2-digit',
             minute: '2-digit',
