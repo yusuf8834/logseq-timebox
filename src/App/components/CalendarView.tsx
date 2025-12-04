@@ -138,6 +138,15 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     return Number.isFinite(total) && total > 0 ? total : null;
   };
 
+  // Extract repeater pattern from SCHEDULED line (e.g., ++1w, .+1d, +1m)
+  const parseRepeater = (content: string): string | null => {
+    const match = content.match(/SCHEDULED:\s*<[^>]*\s+(\+\+|\.\+|\+)(\d+[hdwmy])>/i);
+    if (match) {
+      return match[1] + match[2]; // e.g., "++1w"
+    }
+    return null;
+  };
+
   const updateDurationTokenInContent = (content: string, minutes: number | null): string => {
     const lines = (content || "").split("\n");
     if (lines.length === 0) return content;
@@ -433,8 +442,12 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       const computedDur = !allDay && eventEnd ? Math.max(1, Math.round((eventEnd.getTime() - newDate.getTime()) / 60000)) : null;
       const durMins = existingDur ?? computedDur;
 
-      // Build new SCHEDULED (no duration on this line)
-      let newScheduledText = `SCHEDULED: <${formatScheduledDate(newDate, allDay)}>`;
+      // Preserve repeater pattern (e.g., ++1w, .+1d)
+      const repeater = parseRepeater(block.content || "");
+      const repeaterSuffix = repeater ? ` ${repeater}` : "";
+
+      // Build new SCHEDULED with repeater preserved
+      let newScheduledText = `SCHEDULED: <${formatScheduledDate(newDate, allDay)}${repeaterSuffix}>`;
       let updatedContent = block.content.replace(/SCHEDULED:\s*<[^>]+>(?:\s*\[d:[^\]]+\])?/, newScheduledText);
 
       // Ensure duration token is on the title line
@@ -477,7 +490,11 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
         durMins = Math.max(1, Math.round((newEnd.getTime() - newStart.getTime()) / 60000));
       }
 
-      let newScheduledText = `SCHEDULED: <${formatScheduledDate(newStart, allDay)}>`;
+      // Preserve repeater pattern (e.g., ++1w, .+1d)
+      const repeater = parseRepeater(block.content || "");
+      const repeaterSuffix = repeater ? ` ${repeater}` : "";
+
+      let newScheduledText = `SCHEDULED: <${formatScheduledDate(newStart, allDay)}${repeaterSuffix}>`;
       let updatedContent = block.content.replace(/SCHEDULED:\s*<[^>]+>(?:\s*\[d:[^\]]+\])?/, newScheduledText);
       // Update/insert [d:...] token on the title line
       updatedContent = updateDurationTokenInContent(updatedContent, !allDay && durMins ? durMins : null);
