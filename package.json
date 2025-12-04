@@ -1,7 +1,8 @@
 {
-  "name": "simple-logseq-sidebar",
+  "name": "logseq-timebox",
   "version": "0.1.0",
   "type": "module",
+  "author": "yusuf",
   "logseq": {
     "id": "_simple_sidebar_plugin_2025"
   },

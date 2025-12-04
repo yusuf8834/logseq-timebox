@@ -55,7 +55,44 @@ export function CalendarView() {
     }
   };
 
-  const createBlockInDailyPage = async (date: Date, content?: string, allDay: boolean = false) => {
+  // Compact duration token helper: "[d:1h15m]" (write/read)
+  const formatDurationToken = (minutes: number) => {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h > 0 && m > 0) return `[d:${h}h${m}m]`;
+    if (h > 0) return `[d:${h}h]`;
+    return `[d:${m}m]`;
+  };
+
+  const parseDurationToken = (content: string): number | null => {
+    const match = content.match(/\[d:([0-9hHmM]+)\]/);
+    if (!match) return null;
+    const spec = match[1];
+    let total = 0;
+    const hMatch = spec.match(/(\d+)h/i);
+    const mMatch = spec.match(/(\d+)m/i);
+    if (hMatch) total += parseInt(hMatch[1], 10) * 60;
+    if (mMatch) total += parseInt(mMatch[1], 10);
+    if (total === 0 && /^\d+$/.test(spec)) total = parseInt(spec, 10);
+    return Number.isFinite(total) && total > 0 ? total : null;
+  };
+
+  const updateDurationTokenInContent = (content: string, minutes: number | null): string => {
+    const lines = (content || "").split("\n");
+    if (lines.length === 0) return content;
+    const firstIndex = lines.findIndex((l) => !/^\s*(SCHEDULED:|DEADLINE:)/.test(l));
+    const idx = firstIndex === -1 ? 0 : firstIndex;
+    let title = lines[idx] || "";
+    // remove existing [d:...] tokens
+    title = title.replace(/\s*\[d:[^\]]+\]/g, "").trimEnd();
+    if (minutes && minutes > 0) {
+      title = `${title} ${formatDurationToken(minutes)}`;
+    }
+    lines[idx] = title;
+    return lines.join("\n");
+  };
+
+  const createBlockInDailyPage = async (date: Date, content?: string, allDay: boolean = false, endDate?: Date) => {
     if (isCreatingBlock) return;
 
     try {
@@ -86,12 +123,20 @@ export function CalendarView() {
       }
 
       // Use provided content or default to "TODO new todo from calendar ui"
-      const todoText = content || "TODO new todo from calendar ui";
+      let todoText = content || "TODO new todo from calendar ui";
 
-      // Add SCHEDULED property
+      // Compute compact duration token for title when timed selection has end
+      if (!allDay && endDate && endDate.getTime() > date.getTime()) {
+        const durMins = Math.round((endDate.getTime() - date.getTime()) / 60000);
+        todoText = updateDurationTokenInContent(todoText, durMins);
+      } else {
+        todoText = updateDurationTokenInContent(todoText, null);
+      }
+
+      // SCHEDULED line without duration
       const scheduledText = `SCHEDULED: <${formatScheduledDate(date, allDay)}>`;
 
-      // Format: TODO text on first line, SCHEDULED on second line
+      // Format: title with [d:...] on first line, SCHEDULED on second line
       const blockContent = `${todoText}\n${scheduledText}`;
 
       // Create a new block in the daily page
@@ -117,7 +162,7 @@ export function CalendarView() {
     }
   };
 
-  const parseScheduledTime = (content: string): { date: Date; allDay: boolean } | null => {
+  const parseScheduledTime = (content: string): { date: Date; allDay: boolean; durationMins?: number } | null => {
     // Parse SCHEDULED: <YYYY-MM-DD ddd HH:mm> or SCHEDULED: <YYYY-MM-DD ddd>
     const scheduledMatch = content.match(/SCHEDULED:\s*<([^>]+)>/);
     if (!scheduledMatch) return null;
@@ -136,7 +181,9 @@ export function CalendarView() {
       return { date, allDay: true };
     } else {
       const date = new Date(dateStr + "T" + timeStr + ":00");
-      return { date, allDay: false };
+      // Try to parse duration token [d:...]
+      const durationMins = parseDurationToken(content) ?? undefined;
+      return { date, allDay: false, durationMins };
     }
   };
 
@@ -189,7 +236,7 @@ export function CalendarView() {
         const title = contentLines.find((line: string) => !line.startsWith("SCHEDULED:") && !line.startsWith("DEADLINE:")) || "Untitled";
         const cleanTitle = title.replace(/^\[(TODO|DOING|NOW|LATER|WAITING|DONE|CANCELED)\]\s*/, "").trim();
 
-        calendarEvents.push({
+        const event: EventInput = {
           id: block.uuid,
           title: cleanTitle,
           start: scheduledInfo.date.toISOString(),
@@ -198,7 +245,17 @@ export function CalendarView() {
             blockUuid: block.uuid,
             marker: block.marker,
           },
-        });
+        };
+
+        if (!scheduledInfo.allDay) {
+          const durMins = (scheduledInfo as any).durationMins as number | undefined;
+          if (durMins && durMins > 0) {
+            const end = new Date(scheduledInfo.date.getTime() + durMins * 60000);
+            event.end = end.toISOString();
+          }
+        }
+
+        calendarEvents.push(event);
       }
 
       setEvents(calendarEvents);
@@ -233,9 +290,9 @@ export function CalendarView() {
   };
 
   const handleDateSelect = async (selectInfo: DateSelectArg) => {
-    // Create block when selecting a time slot (has time)
+    // Create block when selecting a time range; store duration via [dur:...] token
     const hasTime = selectInfo.start.getHours() !== 0 || selectInfo.start.getMinutes() !== 0;
-    await createBlockInDailyPage(selectInfo.start, undefined, !hasTime);
+    await createBlockInDailyPage(selectInfo.start, undefined, !hasTime, selectInfo.end ?? undefined);
     // Unselect after creating
     getCalendarApi()?.unselect();
   };
@@ -272,9 +329,18 @@ export function CalendarView() {
         return;
       }
 
-      // Update the SCHEDULED date in the block content
-      const newScheduledText = `SCHEDULED: <${formatScheduledDate(newDate, allDay)}>`;
-      const updatedContent = block.content.replace(/SCHEDULED:\s*<[^>]+>/, newScheduledText);
+      // Preserve duration if present; otherwise compute from event end if available
+      const existingDur = parseDurationToken(block.content || "");
+      const eventEnd: Date | null = dropInfo.event.end || null;
+      const computedDur = !allDay && eventEnd ? Math.max(1, Math.round((eventEnd.getTime() - newDate.getTime()) / 60000)) : null;
+      const durMins = existingDur ?? computedDur;
+
+      // Build new SCHEDULED (no duration on this line)
+      let newScheduledText = `SCHEDULED: <${formatScheduledDate(newDate, allDay)}>`;
+      let updatedContent = block.content.replace(/SCHEDULED:\s*<[^>]+>(?:\s*\[d:[^\]]+\])?/, newScheduledText);
+
+      // Ensure duration token is on the title line
+      updatedContent = updateDurationTokenInContent(updatedContent, !allDay && durMins ? durMins : null);
 
       await logseq.Editor.updateBlock(blockUuid, updatedContent);
       logseq.UI.showMsg("Event moved successfully", "success");
@@ -291,6 +357,7 @@ export function CalendarView() {
   const handleEventResize = async (resizeInfo: any) => {
     const blockUuid = resizeInfo.event.extendedProps.blockUuid;
     const newStart = resizeInfo.event.start;
+    const newEnd = resizeInfo.event.end;
     const allDay = resizeInfo.event.allDay;
 
     if (!blockUuid || !newStart) {
@@ -306,9 +373,16 @@ export function CalendarView() {
         return;
       }
 
-      // Update the SCHEDULED date in the block content
-      const newScheduledText = `SCHEDULED: <${formatScheduledDate(newStart, allDay)}>`;
-      const updatedContent = block.content.replace(/SCHEDULED:\s*<[^>]+>/, newScheduledText);
+      // Compute duration from resize and update token
+      let durMins: number | null = null;
+      if (!allDay && newEnd) {
+        durMins = Math.max(1, Math.round((newEnd.getTime() - newStart.getTime()) / 60000));
+      }
+
+      let newScheduledText = `SCHEDULED: <${formatScheduledDate(newStart, allDay)}>`;
+      let updatedContent = block.content.replace(/SCHEDULED:\s*<[^>]+>(?:\s*\[d:[^\]]+\])?/, newScheduledText);
+      // Update/insert [d:...] token on the title line
+      updatedContent = updateDurationTokenInContent(updatedContent, !allDay && durMins ? durMins : null);
 
       await logseq.Editor.updateBlock(blockUuid, updatedContent);
       logseq.UI.showMsg("Event resized successfully", "success");
