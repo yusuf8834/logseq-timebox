@@ -43,6 +43,30 @@ const getParentViewportDocument = () => {
 
 // Spacer logic removed to avoid affecting header/window controls and layout gaps
 
+// Adjust main content area to make room for sidebar
+const adjustMainContent = (width: number) => {
+  const doc = getParentViewportDocument();
+  if (!doc) return;
+  
+  // Target the main content container
+  const mainContent = doc.querySelector('#main-content-container') as HTMLElement | null;
+  if (mainContent) {
+    mainContent.style.marginRight = `${width}px`;
+    mainContent.style.transition = 'margin-right 0.15s ease';
+  }
+};
+
+const resetMainContent = () => {
+  const doc = getParentViewportDocument();
+  if (!doc) return;
+  
+  const mainContent = doc.querySelector('#main-content-container') as HTMLElement | null;
+  if (mainContent) {
+    mainContent.style.marginRight = '';
+    mainContent.style.transition = '';
+  }
+};
+
 // Main UI helpers
 const setMainUIStyle = (width: number) => {
   const px = `${width}px`;
@@ -68,13 +92,16 @@ const displayUI = () => {
 
   logseq.showMainUI();
 
-  setMainUIStyle(getSidebarWidth());
+  const width = getSidebarWidth();
+  setMainUIStyle(width);
+  adjustMainContent(width);
 };
 
 const hideUI = () => {
   isUiShowing = false;
 
   logseq.hideMainUI();
+  resetMainContent();
 };
 
 // Toolbar
@@ -160,6 +187,7 @@ export const updateSidebarWidth = (width: number) => {
   saveStoredWidth(clampedWidth);
   if (isUiShowing) {
     setMainUIStyle(clampedWidth);
+    adjustMainContent(clampedWidth);
   }
 };
 
