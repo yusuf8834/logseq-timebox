@@ -46,19 +46,24 @@ const getParentViewportDocument = () => {
 const setMainUIStyle = (width: number) => {
   const px = `${width}px`;
 
-  // Try to detect Logseq header height dynamically to avoid overlapping window controls
-  const doc = getParentViewportDocument();
-  const headerEl = doc?.querySelector('.cp__header') as HTMLElement | null;
-  const headerHeight = headerEl?.offsetHeight ?? 40;
-
   logseq.setMainUIInlineStyle({
     position: "absolute",
     zIndex: 11,
     width: px,
-    top: `${headerHeight}px`,
+    top: "0",
     left: `calc(100vw - ${px})`,
-    height: `calc(100vh - ${headerHeight}px)`,
+    height: "100vh",
   });
+};
+
+const HEADER_RIGHT_PADDING_EXTRA = 8;
+
+const setHeaderRightPadding = (paddingPx: number) => {
+  const doc = getParentViewportDocument();
+  const headerEl = doc?.querySelector('.cp__header') as HTMLElement | null;
+  if (headerEl) {
+    headerEl.style.paddingRight = `${Math.max(0, paddingPx)}px`;
+  }
 };
 
 // UI
@@ -68,12 +73,14 @@ const displayUI = () => {
   logseq.showMainUI();
 
   setMainUIStyle(getSidebarWidth());
+  setHeaderRightPadding(getSidebarWidth() + HEADER_RIGHT_PADDING_EXTRA);
 };
 
 const hideUI = () => {
   isUiShowing = false;
 
   logseq.hideMainUI();
+  setHeaderRightPadding(0);
 };
 
 // Toolbar
