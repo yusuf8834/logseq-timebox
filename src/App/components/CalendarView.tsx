@@ -386,7 +386,6 @@ export function CalendarView() {
           }
           if (pageName) {
             await logseq.Editor.scrollToBlockInPage(pageName, blockUuid);
-            logseq.hideMainUI();
           }
         }
       } catch (error) {
