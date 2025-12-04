@@ -1,6 +1,7 @@
 import packageJson from "../package.json" with { type: "json" };
 
 const providedUiIdBase = "simple-sidebar-plugin";
+const legacySpacerKey = `${providedUiIdBase}-spacer`;
 
 const applicationId = packageJson.logseq.id;
 
@@ -46,24 +47,19 @@ const getParentViewportDocument = () => {
 const setMainUIStyle = (width: number) => {
   const px = `${width}px`;
 
+  // Detect header height so overlay starts below it (keeps top buttons clickable)
+  const doc = getParentViewportDocument();
+  const headerEl = doc?.querySelector('.cp__header') as HTMLElement | null;
+  const headerHeight = headerEl?.offsetHeight ?? 40;
+
   logseq.setMainUIInlineStyle({
     position: "absolute",
     zIndex: 11,
     width: px,
-    top: "0",
+    top: `${headerHeight}px`,
     left: `calc(100vw - ${px})`,
-    height: "100vh",
+    height: `calc(100vh - ${headerHeight}px)`,
   });
-};
-
-const HEADER_RIGHT_PADDING_EXTRA = 8;
-
-const setHeaderRightPadding = (paddingPx: number) => {
-  const doc = getParentViewportDocument();
-  const headerEl = doc?.querySelector('.cp__header') as HTMLElement | null;
-  if (headerEl) {
-    headerEl.style.paddingRight = `${Math.max(0, paddingPx)}px`;
-  }
 };
 
 // UI
@@ -73,14 +69,12 @@ const displayUI = () => {
   logseq.showMainUI();
 
   setMainUIStyle(getSidebarWidth());
-  setHeaderRightPadding(getSidebarWidth() + HEADER_RIGHT_PADDING_EXTRA);
 };
 
 const hideUI = () => {
   isUiShowing = false;
 
   logseq.hideMainUI();
-  setHeaderRightPadding(0);
 };
 
 // Toolbar
@@ -156,7 +150,7 @@ const readStoredWidth = () => {
 // Initialization
 export const initializeSidebarStuff = () => {
   injectGlobalStyleOverrides();
-
+  cleanupLegacyArtifacts();
   initializeToolbar();
 };
 
@@ -165,5 +159,19 @@ const injectGlobalStyleOverrides = () => {
     #root { display: flex; }
     .theme-container { flex: 1; }
   `);
+};
+
+const cleanupLegacyArtifacts = () => {
+  try {
+    // Remove any previously injected spacer UI from older versions
+    logseq.provideUI({ key: legacySpacerKey, path: "#root", template: "" });
+  } catch {}
+
+  try {
+    // Clear any header padding-right left by older versions
+    const doc = getParentViewportDocument();
+    const headerEl = doc?.querySelector('.cp__header') as HTMLElement | null;
+    if (headerEl) headerEl.style.paddingRight = "";
+  } catch {}
 };
 

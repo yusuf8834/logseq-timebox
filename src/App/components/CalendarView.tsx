@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import packageJson from "../../../package.json" with { type: "json" };
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -10,6 +11,60 @@ export function CalendarView() {
   const calendarRef = useRef<FullCalendar>(null);
   const [isCreatingBlock, setIsCreatingBlock] = useState(false);
   const [events, setEvents] = useState<EventInput[]>([]);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Sidebar width restore helpers (mirror sidebar-stuff.ts minimal logic)
+  const applicationId = packageJson.logseq.id as string;
+  const sidebarWidthStorageKey = `${applicationId}-sidebar-width`;
+  const MIN_WIDTH = 300;
+  const defaultWidth = 400;
+  const clampWidth = (w: number) => Math.max(MIN_WIDTH, w);
+  const readStoredWidth = () => {
+    try {
+      const raw = window.parent?.window?.localStorage?.getItem(sidebarWidthStorageKey);
+      if (!raw) return defaultWidth;
+      const parsed = Number.parseInt(raw, 10);
+      return Number.isFinite(parsed) ? clampWidth(parsed) : defaultWidth;
+    } catch {
+      return defaultWidth;
+    }
+  };
+
+  const computeHeaderHeight = () => {
+    const headerEl = window.parent?.document?.querySelector('.cp__header') as HTMLElement | null;
+    return headerEl?.offsetHeight ?? 40;
+  };
+
+  const enterFullscreen = () => {
+    logseq.setMainUIInlineStyle({
+      position: "absolute",
+      zIndex: 100,
+      width: "100vw",
+      top: "0",
+      left: "0",
+      height: "100vh",
+    });
+    setIsFullscreen(true);
+  };
+
+  const exitFullscreen = () => {
+    const px = `${readStoredWidth()}px`;
+    const headerHeight = computeHeaderHeight();
+    logseq.setMainUIInlineStyle({
+      position: "absolute",
+      zIndex: 11,
+      width: px,
+      top: `${headerHeight}px`,
+      left: `calc(100vw - ${px})`,
+      height: `calc(100vh - ${headerHeight}px)`,
+    });
+    setIsFullscreen(false);
+  };
+
+  const toggleFullscreen = () => {
+    if (isFullscreen) exitFullscreen();
+    else enterFullscreen();
+  };
 
   const formatDateForJournal = (date: Date, format: string): string => {
     const year = date.getFullYear();
@@ -284,6 +339,18 @@ export function CalendarView() {
     };
   }, []);
 
+  // Allow ESC to exit fullscreen
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        exitFullscreen();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isFullscreen]);
+
   const handleDateClick = async (clickInfo: any) => {
     // Create block when clicking on a date (all-day event)
     await createBlockInDailyPage(clickInfo.date, undefined, true);
@@ -401,7 +468,7 @@ export function CalendarView() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" style={isFullscreen ? { marginLeft: '25%', marginRight: '25%', marginTop: 10, marginBottom: 10 } : undefined}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-logseq-cyan-low-saturation-800/70">
         <div className="flex items-center gap-2">
@@ -425,6 +492,27 @@ export function CalendarView() {
               <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
               <path d="M16 21h5v-5" />
             </svg>
+          </button>
+          <button
+            onClick={toggleFullscreen}
+            className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-logseq-cyan-low-saturation-800/70 text-gray-600 dark:text-logseq-cyan-low-saturation-300"
+            title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+          >
+            {isFullscreen ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 9 3 9 3 3" /><line x1="3" y1="3" x2="10" y2="10" />
+                <polyline points="15 9 21 9 21 3" /><line x1="14" y1="10" x2="21" y2="3" />
+                <polyline points="15 15 21 15 21 21" /><line x1="14" y1="14" x2="21" y2="21" />
+                <polyline points="9 15 3 15 3 21" /><line x1="3" y1="21" x2="10" y2="14" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 3 21 3 21 9" /><line x1="21" y1="3" x2="14" y2="10" />
+                <polyline points="9 3 3 3 3 9" /><line x1="3" y1="3" x2="10" y2="10" />
+                <polyline points="21 15 21 21 15 21" /><line x1="21" y1="21" x2="14" y2="14" />
+                <polyline points="3 15 3 21 9 21" /><line x1="3" y1="21" x2="10" y2="14" />
+              </svg>
+            )}
           </button>
           <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1" />
           <button
