@@ -302,6 +302,13 @@ export function CalendarView() {
           },
         };
 
+        // Set soft green background for DONE tasks
+        if (block.marker === "DONE") {
+          event.backgroundColor = "#d1f4d1";
+          event.borderColor = "#a3e4a3";
+          event.textColor = "#2d5f2d";
+        }
+
         if (!scheduledInfo.allDay) {
           const durMins = (scheduledInfo as any).durationMins as number | undefined;
           if (durMins && durMins > 0) {
