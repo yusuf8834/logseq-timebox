@@ -12,6 +12,11 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@fullcalendar/core": "^6.1.15",
+    "@fullcalendar/daygrid": "^6.1.15",
+    "@fullcalendar/interaction": "^6.1.15",
+    "@fullcalendar/react": "^6.1.15",
+    "@fullcalendar/timegrid": "^6.1.15",
     "@logseq/libs": "^0.0.17",
     "@tailwindcss/vite": "^4.1.16",
     "react": "^19.1.1",
