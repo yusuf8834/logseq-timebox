@@ -1,7 +1,6 @@
 import packageJson from "../package.json" with { type: "json" };
 
 const providedUiIdBase = "simple-sidebar-plugin";
-const spacerId = `${providedUiIdBase}-spacer`;
 
 const applicationId = packageJson.logseq.id;
 
@@ -10,8 +9,7 @@ const sidebarWidthStorageKey = `${applicationId}-sidebar-width`;
 const defaultWidth = 400;
 const MIN_WIDTH = 300;
 
-const sidebarHandleWidth = 4;
-const spacerLeftPadding = 10;
+// Removed spacer logic; overlay now floats below header without shifting layout.
 
 // Local state
 let isUiShowing = false;
@@ -27,10 +25,7 @@ const getSidebarWidth = () => {
   return sidebarWidth;
 };
 
-// Element ID
-const deriveProvidedElementId = (providedUiId: string) => {
-  return `${applicationId}--${providedUiId}`;
-};
+// Element ID helper removed (no injected spacer elements anymore)
 
 const getParentViewportDocument = () => {
   try {
@@ -45,54 +40,24 @@ const getParentViewportDocument = () => {
   return document;
 };
 
-// Spacer
-const computeSpacerWidth = (targetSidebarWidth: number) =>
-  targetSidebarWidth + sidebarHandleWidth + spacerLeftPadding;
-
-const updateSpacerWidth = (newSidebarWidth: number) => {
-  const doc = getParentViewportDocument();
-  if (!doc) {
-    return;
-  }
-
-  const element = doc.querySelector(
-    `#${deriveProvidedElementId(spacerId)} > div`
-  ) as HTMLDivElement | null;
-
-  if (element) {
-    element.style.width = `${computeSpacerWidth(newSidebarWidth)}px`;
-  }
-};
-
-const injectSpacer = () => {
-  logseq.provideUI({
-    key: spacerId,
-    path: "#root",
-    template: `<div style="width: ${computeSpacerWidth(
-      getSidebarWidth()
-    )}px; background: transparent; height: 100vh; cursor: ew-resize"></div>`,
-  });
-};
-
-const removeSpacer = () => {
-  logseq.provideUI({
-    key: spacerId,
-    path: "#root",
-    template: "",
-  });
-};
+// Spacer logic removed to avoid affecting header/window controls and layout gaps
 
 // Main UI helpers
 const setMainUIStyle = (width: number) => {
   const px = `${width}px`;
 
+  // Try to detect Logseq header height dynamically to avoid overlapping window controls
+  const doc = getParentViewportDocument();
+  const headerEl = doc?.querySelector('.cp__header') as HTMLElement | null;
+  const headerHeight = headerEl?.offsetHeight ?? 40;
+
   logseq.setMainUIInlineStyle({
     position: "absolute",
     zIndex: 11,
     width: px,
-    top: "0",
+    top: `${headerHeight}px`,
     left: `calc(100vw - ${px})`,
-    height: "100vh",
+    height: `calc(100vh - ${headerHeight}px)`,
   });
 };
 
@@ -100,20 +65,15 @@ const setMainUIStyle = (width: number) => {
 const displayUI = () => {
   isUiShowing = true;
 
-  injectSpacer();
-
   logseq.showMainUI();
 
   setMainUIStyle(getSidebarWidth());
-
-  updateSpacerWidth(getSidebarWidth());
 };
 
 const hideUI = () => {
   isUiShowing = false;
 
   logseq.hideMainUI();
-  removeSpacer();
 };
 
 // Toolbar
