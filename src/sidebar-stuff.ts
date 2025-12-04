@@ -161,7 +161,7 @@ const initializeToolbar = () => {
     key: iconName,
     template: `
       <a class="button relative" data-on-click="toggle">
-        <span class="${iconName}"><i class="ti ti-message-chatbot"></i></span>
+        <span class="${iconName}"><i class="ti ti-calendar"></i></span>
       </a>  
     `,
   });

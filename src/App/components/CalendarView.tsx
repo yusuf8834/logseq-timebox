@@ -45,7 +45,7 @@ export function CalendarView() {
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
     const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
-    
+
     if (allDay) {
       return `${year}-${month}-${day} ${dayName}`;
     } else {
@@ -60,17 +60,17 @@ export function CalendarView() {
 
     try {
       setIsCreatingBlock(true);
-      
+
       // Normalize date to local date (remove time component for journal page lookup)
       const normalizedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-      
+
       // Get user's preferred date format from Logseq config
       const userConfigs = await logseq.App.getUserConfigs();
       const preferredDateFormat = userConfigs?.preferredDateFormat || "yyyy-MM-dd EEE";
-      
+
       // Format the date according to user's preference
       const journalName = formatDateForJournal(normalizedDate, preferredDateFormat);
-      
+
       // Try to get the journal page
       let page = await logseq.Editor.getPage(journalName);
 
@@ -87,10 +87,10 @@ export function CalendarView() {
 
       // Use provided content or empty string
       let blockContent = content || "";
-      
+
       // Add SCHEDULED property
       const scheduledText = `SCHEDULED: <${formatScheduledDate(date, allDay)}>`;
-      
+
       // Add scheduled text to block content
       if (blockContent) {
         blockContent = `${blockContent}\n${scheduledText}`;
@@ -125,16 +125,16 @@ export function CalendarView() {
     // Parse SCHEDULED: <YYYY-MM-DD ddd HH:mm> or SCHEDULED: <YYYY-MM-DD ddd>
     const scheduledMatch = content.match(/SCHEDULED:\s*<([^>]+)>/);
     if (!scheduledMatch) return null;
-    
+
     const scheduledStr = scheduledMatch[1];
     // Extract date and optional time
     const dateTimeMatch = scheduledStr.match(/(\d{4}-\d{2}-\d{2})\s+\w+\s*(\d{2}:\d{2})?/);
     if (!dateTimeMatch) return null;
-    
+
     const dateStr = dateTimeMatch[1];
     const timeStr = dateTimeMatch[2];
     const allDay = !timeStr;
-    
+
     if (allDay) {
       const date = new Date(dateStr + "T00:00:00");
       return { date, allDay: true };
@@ -172,11 +172,11 @@ export function CalendarView() {
       }
 
       const calendarEvents: EventInput[] = [];
-      
+
       for (const result of scheduledBlocks) {
         const block = result[0];
         if (!block || !block.scheduled) continue;
-        
+
         // Parse scheduled date
         let scheduledInfo = parseScheduledTime(block.content || "");
         if (!scheduledInfo) {
@@ -187,12 +187,12 @@ export function CalendarView() {
           const day = parseInt(scheduledStr.substring(6, 8));
           scheduledInfo = { date: new Date(year, month, day), allDay: true };
         }
-        
+
         // Get block title (first line of content without SCHEDULED)
         const contentLines = (block.content || "").split("\n");
         const title = contentLines.find((line: string) => !line.startsWith("SCHEDULED:") && !line.startsWith("DEADLINE:")) || "Untitled";
         const cleanTitle = title.replace(/^\[(TODO|DOING|NOW|LATER|WAITING|DONE|CANCELED)\]\s*/, "").trim();
-        
+
         calendarEvents.push({
           id: block.uuid,
           title: cleanTitle,
@@ -204,7 +204,7 @@ export function CalendarView() {
           },
         });
       }
-      
+
       setEvents(calendarEvents);
     } catch (error) {
       console.error("Error loading scheduled events:", error);
@@ -213,14 +213,21 @@ export function CalendarView() {
 
   useEffect(() => {
     loadScheduledEvents();
-    
+
     // Reload events when database changes
+    let timeoutId: number;
     const unsubscribe = logseq.DB.onChanged(() => {
-      loadScheduledEvents();
+      if (timeoutId) window.clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(() => {
+        loadScheduledEvents();
+      }, 500);
     });
-    
+
     return () => {
-      unsubscribe();
+      if (timeoutId) window.clearTimeout(timeoutId);
+      if (typeof unsubscribe === "function") {
+        unsubscribe();
+      }
     };
   }, []);
 
@@ -260,6 +267,28 @@ export function CalendarView() {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-logseq-cyan-low-saturation-800/70">
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => loadScheduledEvents()}
+            className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-logseq-cyan-low-saturation-800/70 text-gray-600 dark:text-logseq-cyan-low-saturation-300"
+            title="Refresh events"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+              <path d="M16 21h5v-5" />
+            </svg>
+          </button>
+          <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1" />
           <button
             onClick={() => {
               getCalendarApi()?.prev();
@@ -314,11 +343,10 @@ export function CalendarView() {
             setCurrentView("timeGridDay");
             getCalendarApi()?.changeView("timeGridDay");
           }}
-          className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${
-            currentView === "timeGridDay"
+          className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "timeGridDay"
               ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
               : "text-gray-600 dark:text-logseq-cyan-low-saturation-400 hover:bg-gray-100 dark:hover:bg-logseq-cyan-low-saturation-800/50"
-          }`}
+            }`}
         >
           Day
         </button>
@@ -327,11 +355,10 @@ export function CalendarView() {
             setCurrentView("timeGridWeek");
             getCalendarApi()?.changeView("timeGridWeek");
           }}
-          className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${
-            currentView === "timeGridWeek"
+          className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "timeGridWeek"
               ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
               : "text-gray-600 dark:text-logseq-cyan-low-saturation-400 hover:bg-gray-100 dark:hover:bg-logseq-cyan-low-saturation-800/50"
-          }`}
+            }`}
         >
           Week
         </button>
@@ -340,11 +367,10 @@ export function CalendarView() {
             setCurrentView("dayGridMonth");
             getCalendarApi()?.changeView("dayGridMonth");
           }}
-          className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${
-            currentView === "dayGridMonth"
+          className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "dayGridMonth"
               ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
               : "text-gray-600 dark:text-logseq-cyan-low-saturation-400 hover:bg-gray-100 dark:hover:bg-logseq-cyan-low-saturation-800/50"
-          }`}
+            }`}
         >
           Month
         </button>
