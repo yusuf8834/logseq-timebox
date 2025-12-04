@@ -36,13 +36,14 @@ export function CalendarView() {
   };
 
   const enterFullscreen = () => {
+    const headerHeight = computeHeaderHeight();
     logseq.setMainUIInlineStyle({
       position: "absolute",
-      zIndex: 100,
+      zIndex: 11,
       width: "100vw",
-      top: "0",
+      top: `${headerHeight}px`,
       left: "0",
-      height: "100vh",
+      height: `calc(100vh - ${headerHeight}px)`,
     });
     setIsFullscreen(true);
   };
