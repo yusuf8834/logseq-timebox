@@ -1,2 +1,0 @@
-- make DONE green -- OK
-- current time line -- OK
