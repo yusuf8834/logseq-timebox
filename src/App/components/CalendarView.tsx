@@ -1,21 +1,254 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import type { DateSelectArg, EventClickArg, CalendarApi } from "@fullcalendar/core";
+import type { DateSelectArg, EventClickArg, CalendarApi, EventInput } from "@fullcalendar/core";
 
 export function CalendarView() {
   const [currentView, setCurrentView] = useState<"dayGridMonth" | "timeGridWeek" | "timeGridDay">("timeGridDay");
   const calendarRef = useRef<FullCalendar>(null);
+  const [isCreatingBlock, setIsCreatingBlock] = useState(false);
+  const [events, setEvents] = useState<EventInput[]>([]);
 
-  const handleDateSelect = (selectInfo: DateSelectArg) => {
-    console.log("Selected date:", selectInfo);
-    // You can add event creation logic here
+  const formatDateForJournal = (date: Date, format: string): string => {
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+
+    const getOrdinal = (n: number) => {
+      const s = ["th", "st", "nd", "rd"];
+      const v = n % 100;
+      return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    };
+
+    const tokens: Record<string, string> = {
+      yyyy: String(year),
+      MMMM: date.toLocaleDateString("en-US", { month: "long" }),
+      MMM: date.toLocaleDateString("en-US", { month: "short" }),
+      MM: String(month).padStart(2, "0"),
+      M: String(month),
+      dd: String(day).padStart(2, "0"),
+      do: getOrdinal(day),
+      d: String(day),
+      EEEE: date.toLocaleDateString("en-US", { weekday: "long" }),
+      EEE: date.toLocaleDateString("en-US", { weekday: "short" }),
+    };
+
+    const regex = /yyyy|MMMM|MMM|MM|M|dd|do|d|EEEE|EEE/g;
+
+    return format.replace(regex, (match) => tokens[match]);
   };
 
-  const handleEventClick = (clickInfo: EventClickArg) => {
-    console.log("Event clicked:", clickInfo);
+  const formatScheduledDate = (date: Date, allDay: boolean): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
+    
+    if (allDay) {
+      return `${year}-${month}-${day} ${dayName}`;
+    } else {
+      const hours = String(date.getHours()).padStart(2, "0");
+      const minutes = String(date.getMinutes()).padStart(2, "0");
+      return `${year}-${month}-${day} ${dayName} ${hours}:${minutes}`;
+    }
+  };
+
+  const createBlockInDailyPage = async (date: Date, content?: string, allDay: boolean = false) => {
+    if (isCreatingBlock) return;
+
+    try {
+      setIsCreatingBlock(true);
+      
+      // Normalize date to local date (remove time component for journal page lookup)
+      const normalizedDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      
+      // Get user's preferred date format from Logseq config
+      const userConfigs = await logseq.App.getUserConfigs();
+      const preferredDateFormat = userConfigs?.preferredDateFormat || "yyyy-MM-dd EEE";
+      
+      // Format the date according to user's preference
+      const journalName = formatDateForJournal(normalizedDate, preferredDateFormat);
+      
+      // Try to get the journal page
+      let page = await logseq.Editor.getPage(journalName);
+
+      // If page doesn't exist, try to create it
+      if (!page) {
+        page = await logseq.Editor.createPage(journalName, {}, { journal: true });
+      }
+
+      if (!page) {
+        logseq.UI.showMsg(`Failed to get or create journal page for ${normalizedDate.toLocaleDateString()}`, "error");
+        setIsCreatingBlock(false);
+        return;
+      }
+
+      // Use provided content or empty string
+      let blockContent = content || "";
+      
+      // Add SCHEDULED property
+      const scheduledText = `SCHEDULED: <${formatScheduledDate(date, allDay)}>`;
+      
+      // Add scheduled text to block content
+      if (blockContent) {
+        blockContent = `${blockContent}\n${scheduledText}`;
+      } else {
+        blockContent = scheduledText;
+      }
+
+      // Create a new block in the daily page
+      const block = await logseq.Editor.appendBlockInPage(
+        page.uuid,
+        blockContent
+      );
+
+      if (block) {
+        // Reload events to show the new scheduled block
+        loadScheduledEvents();
+        // Navigate to the journal page
+        await logseq.Editor.scrollToBlockInPage(page.name, block.uuid);
+        logseq.UI.showMsg(`Block created in ${date.toLocaleDateString()}`, "success");
+      } else {
+        logseq.UI.showMsg("Failed to create block", "error");
+      }
+    } catch (error) {
+      console.error("Error creating block:", error);
+      logseq.UI.showMsg(`Error: ${error}`, "error");
+    } finally {
+      setIsCreatingBlock(false);
+    }
+  };
+
+  const parseScheduledTime = (content: string): { date: Date; allDay: boolean } | null => {
+    // Parse SCHEDULED: <YYYY-MM-DD ddd HH:mm> or SCHEDULED: <YYYY-MM-DD ddd>
+    const scheduledMatch = content.match(/SCHEDULED:\s*<([^>]+)>/);
+    if (!scheduledMatch) return null;
+    
+    const scheduledStr = scheduledMatch[1];
+    // Extract date and optional time
+    const dateTimeMatch = scheduledStr.match(/(\d{4}-\d{2}-\d{2})\s+\w+\s*(\d{2}:\d{2})?/);
+    if (!dateTimeMatch) return null;
+    
+    const dateStr = dateTimeMatch[1];
+    const timeStr = dateTimeMatch[2];
+    const allDay = !timeStr;
+    
+    if (allDay) {
+      const date = new Date(dateStr + "T00:00:00");
+      return { date, allDay: true };
+    } else {
+      const date = new Date(dateStr + "T" + timeStr + ":00");
+      return { date, allDay: false };
+    }
+  };
+
+  const loadScheduledEvents = async () => {
+    try {
+      // Query blocks with scheduled property
+      const scheduledBlocks = await logseq.DB.datascriptQuery(`
+        [:find (pull
+          ?block
+          [:block/uuid
+            :block/content
+            :block/marker
+            :block/scheduled
+            :block/deadline
+            {:block/page
+              [:db/id :block/name :block/original-name :block/journal-day :block/journal?]}])
+          :where
+          [?block :block/scheduled]
+          (or-join [?block]
+            (and
+              [?block :block/marker ?marker]
+              [(contains? #{"TODO" "DOING" "NOW" "LATER" "WAITING" "DONE" "CANCELED"} ?marker)])
+            [(missing? $ ?block :block/marker)])]
+      `);
+
+      if (!scheduledBlocks || scheduledBlocks.length === 0) {
+        setEvents([]);
+        return;
+      }
+
+      const calendarEvents: EventInput[] = [];
+      
+      for (const result of scheduledBlocks) {
+        const block = result[0];
+        if (!block || !block.scheduled) continue;
+        
+        // Parse scheduled date
+        let scheduledInfo = parseScheduledTime(block.content || "");
+        if (!scheduledInfo) {
+          // Fallback to block.scheduled property (YYYYMMDD format)
+          const scheduledStr = String(block.scheduled);
+          const year = parseInt(scheduledStr.substring(0, 4));
+          const month = parseInt(scheduledStr.substring(4, 6)) - 1;
+          const day = parseInt(scheduledStr.substring(6, 8));
+          scheduledInfo = { date: new Date(year, month, day), allDay: true };
+        }
+        
+        // Get block title (first line of content without SCHEDULED)
+        const contentLines = (block.content || "").split("\n");
+        const title = contentLines.find((line: string) => !line.startsWith("SCHEDULED:") && !line.startsWith("DEADLINE:")) || "Untitled";
+        const cleanTitle = title.replace(/^\[(TODO|DOING|NOW|LATER|WAITING|DONE|CANCELED)\]\s*/, "").trim();
+        
+        calendarEvents.push({
+          id: block.uuid,
+          title: cleanTitle,
+          start: scheduledInfo.date.toISOString(),
+          allDay: scheduledInfo.allDay,
+          extendedProps: {
+            blockUuid: block.uuid,
+            marker: block.marker,
+          },
+        });
+      }
+      
+      setEvents(calendarEvents);
+    } catch (error) {
+      console.error("Error loading scheduled events:", error);
+    }
+  };
+
+  useEffect(() => {
+    loadScheduledEvents();
+    
+    // Reload events when database changes
+    const unsubscribe = logseq.DB.onChanged(() => {
+      loadScheduledEvents();
+    });
+    
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  const handleDateClick = async (clickInfo: any) => {
+    // Create block when clicking on a date (all-day event)
+    await createBlockInDailyPage(clickInfo.date, undefined, true);
+  };
+
+  const handleDateSelect = async (selectInfo: DateSelectArg) => {
+    // Create block when selecting a time slot (has time)
+    const hasTime = selectInfo.start.getHours() !== 0 || selectInfo.start.getMinutes() !== 0;
+    await createBlockInDailyPage(selectInfo.start, undefined, !hasTime);
+    // Unselect after creating
+    getCalendarApi()?.unselect();
+  };
+
+  const handleEventClick = async (clickInfo: EventClickArg) => {
+    const blockUuid = clickInfo.event.extendedProps.blockUuid;
+    if (blockUuid) {
+      try {
+        const block = await logseq.Editor.getBlock(blockUuid);
+        if (block?.page?.name) {
+          await logseq.Editor.scrollToBlockInPage(block.page.name, blockUuid);
+        }
+      } catch (error) {
+        console.error("Error navigating to block:", error);
+      }
+    }
   };
 
   const getCalendarApi = (): CalendarApi | null => {
@@ -180,9 +413,10 @@ export function CalendarView() {
           selectMirror={true}
           dayMaxEvents={true}
           weekends={true}
+          dateClick={handleDateClick}
           select={handleDateSelect}
           eventClick={handleEventClick}
-          events={[]}
+          events={events}
           viewDidMount={(view: any) => {
             setCurrentView(view.view.type as "dayGridMonth" | "timeGridWeek" | "timeGridDay");
           }}
