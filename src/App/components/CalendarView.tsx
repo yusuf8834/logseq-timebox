@@ -85,18 +85,14 @@ export function CalendarView() {
         return;
       }
 
-      // Use provided content or empty string
-      let blockContent = content || "";
+      // Use provided content or default to "TODO new todo from calendar ui"
+      const todoText = content || "TODO new todo from calendar ui";
 
       // Add SCHEDULED property
       const scheduledText = `SCHEDULED: <${formatScheduledDate(date, allDay)}>`;
 
-      // Add scheduled text to block content
-      if (blockContent) {
-        blockContent = `${blockContent}\n${scheduledText}`;
-      } else {
-        blockContent = scheduledText;
-      }
+      // Format: TODO text on first line, SCHEDULED on second line
+      const blockContent = `${todoText}\n${scheduledText}`;
 
       // Create a new block in the daily page
       const block = await logseq.Editor.appendBlockInPage(
@@ -439,6 +435,16 @@ export function CalendarView() {
           selectMirror={true}
           dayMaxEvents={true}
           weekends={true}
+          slotLabelFormat={{
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          }}
+          eventTimeFormat={{
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+          }}
           dateClick={handleDateClick}
           select={handleDateSelect}
           eventClick={handleEventClick}
