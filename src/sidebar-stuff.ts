@@ -147,6 +147,24 @@ const readStoredWidth = () => {
   }
 };
 
+const saveStoredWidth = (width: number) => {
+  try {
+    getLocalStorage()?.setItem(sidebarWidthStorageKey, String(width));
+  } catch {}
+};
+
+// Called from App component when resizing
+export const updateSidebarWidth = (width: number) => {
+  const clampedWidth = clampWidth(width);
+  sidebarWidth = clampedWidth;
+  saveStoredWidth(clampedWidth);
+  if (isUiShowing) {
+    setMainUIStyle(clampedWidth);
+  }
+};
+
+export const getStoredSidebarWidth = () => getSidebarWidth();
+
 // Initialization
 export const initializeSidebarStuff = () => {
   injectGlobalStyleOverrides();
