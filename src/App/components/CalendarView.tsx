@@ -4,7 +4,7 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import type { DateSelectArg, EventClickArg, CalendarApi, EventInput } from "@fullcalendar/core";
+import type { DateSelectArg, EventClickArg, CalendarApi, EventInput, EventContentArg } from "@fullcalendar/core";
 
 interface CalendarViewProps {
   onTogglePosition?: () => void;
@@ -494,6 +494,77 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     }
   };
 
+  const handleClearSchedule = async (blockUuid: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent event click from firing
+    
+    try {
+      const block = await logseq.Editor.getBlock(blockUuid);
+      if (!block) {
+        logseq.UI.showMsg("Block not found", "error");
+        return;
+      }
+
+      // Remove SCHEDULED line and duration token
+      let updatedContent = block.content
+        .split("\n")
+        .filter((line: string) => !line.trim().startsWith("SCHEDULED:"))
+        .join("\n");
+      
+      // Remove duration token [d:...]
+      updatedContent = updatedContent.replace(/\s*\[d:[^\]]+\]/g, "");
+      
+      // Clean up any trailing whitespace
+      updatedContent = updatedContent.trimEnd();
+
+      await logseq.Editor.updateBlock(blockUuid, updatedContent);
+      logseq.UI.showMsg("Schedule cleared", "success");
+      
+      // Reload events to reflect changes
+      setTimeout(() => loadScheduledEvents(), 100);
+    } catch (error) {
+      console.error("Error clearing schedule:", error);
+      logseq.UI.showMsg(`Error clearing schedule: ${error}`, "error");
+    }
+  };
+
+  const renderEventContent = (eventInfo: EventContentArg) => {
+    const blockUuid = eventInfo.event.extendedProps.blockUuid;
+    
+    return (
+      <div className="fc-event-content-wrapper" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', height: '100%', overflow: 'hidden', padding: '2px 4px' }}>
+        <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {eventInfo.timeText && <span style={{ marginRight: '4px', fontWeight: 500 }}>{eventInfo.timeText}</span>}
+          <span>{eventInfo.event.title}</span>
+        </div>
+        <button
+          onClick={(e) => handleClearSchedule(blockUuid, e)}
+          className="fc-clear-btn"
+          title="Clear schedule"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '16px',
+            height: '16px',
+            borderRadius: '3px',
+            backgroundColor: 'rgba(0,0,0,0.1)',
+            border: 'none',
+            cursor: 'pointer',
+            flexShrink: 0,
+            marginLeft: '4px',
+            opacity: 0,
+            transition: 'opacity 0.15s',
+          }}
+        >
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+    );
+  };
+
   const getCalendarApi = (): CalendarApi | null => {
     return calendarRef.current?.getApi() || null;
   };
@@ -711,6 +782,12 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           .fc-timegrid-now-indicator-arrow {
             border-color: rgb(239 68 68);
           }
+          .fc-event:hover .fc-clear-btn {
+            opacity: 1 !important;
+          }
+          .fc-clear-btn:hover {
+            background-color: rgba(0,0,0,0.2) !important;
+          }
         `}</style>
         <FullCalendar
           ref={calendarRef}
@@ -740,6 +817,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           eventClick={handleEventClick}
           eventDrop={handleEventDrop}
           eventResize={handleEventResize}
+          eventContent={renderEventContent}
           events={events}
           viewDidMount={(view: any) => {
             setCurrentView(view.view.type as "dayGridMonth" | "timeGridWeek" | "timeGridDay");
