@@ -48,7 +48,7 @@ function App() {
           style={{ touchAction: "none" }}
         />
       )}
-      <section className={`bg-white dark:bg-logseq-cyan-low-saturation-950 shadow-lg h-full ${position === "left" ? "border-r" : "border-l"} border-gray-200 dark:border-logseq-cyan-low-saturation-800/70 flex flex-col overflow-hidden flex-1`}>
+      <section className={`bg-white dark:bg-logseq-cyan-low-saturation-950 h-full ${position === "left" ? "border-r" : "border-l"} border-gray-200 dark:border-logseq-cyan-low-saturation-800/70 flex flex-col overflow-hidden flex-1`} style={{ boxShadow: "0 0 15px 0 rgba(0, 0, 0, 0.15)" }}>
         <CalendarView onTogglePosition={handleTogglePosition} position={position} />
       </section>
       {/* Resize handle on right when position is left */}
