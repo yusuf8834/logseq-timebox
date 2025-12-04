@@ -254,6 +254,74 @@ export function CalendarView() {
     }
   };
 
+  const handleEventDrop = async (dropInfo: any) => {
+    const blockUuid = dropInfo.event.extendedProps.blockUuid;
+    const newDate = dropInfo.event.start;
+    const allDay = dropInfo.event.allDay;
+
+    if (!blockUuid || !newDate) {
+      dropInfo.revert();
+      return;
+    }
+
+    try {
+      const block = await logseq.Editor.getBlock(blockUuid);
+      if (!block) {
+        logseq.UI.showMsg("Block not found", "error");
+        dropInfo.revert();
+        return;
+      }
+
+      // Update the SCHEDULED date in the block content
+      const newScheduledText = `SCHEDULED: <${formatScheduledDate(newDate, allDay)}>`;
+      const updatedContent = block.content.replace(/SCHEDULED:\s*<[^>]+>/, newScheduledText);
+
+      await logseq.Editor.updateBlock(blockUuid, updatedContent);
+      logseq.UI.showMsg("Event moved successfully", "success");
+      
+      // Reload events to reflect changes
+      setTimeout(() => loadScheduledEvents(), 100);
+    } catch (error) {
+      console.error("Error moving event:", error);
+      logseq.UI.showMsg(`Error moving event: ${error}`, "error");
+      dropInfo.revert();
+    }
+  };
+
+  const handleEventResize = async (resizeInfo: any) => {
+    const blockUuid = resizeInfo.event.extendedProps.blockUuid;
+    const newStart = resizeInfo.event.start;
+    const allDay = resizeInfo.event.allDay;
+
+    if (!blockUuid || !newStart) {
+      resizeInfo.revert();
+      return;
+    }
+
+    try {
+      const block = await logseq.Editor.getBlock(blockUuid);
+      if (!block) {
+        logseq.UI.showMsg("Block not found", "error");
+        resizeInfo.revert();
+        return;
+      }
+
+      // Update the SCHEDULED date in the block content
+      const newScheduledText = `SCHEDULED: <${formatScheduledDate(newStart, allDay)}>`;
+      const updatedContent = block.content.replace(/SCHEDULED:\s*<[^>]+>/, newScheduledText);
+
+      await logseq.Editor.updateBlock(blockUuid, updatedContent);
+      logseq.UI.showMsg("Event resized successfully", "success");
+      
+      // Reload events to reflect changes
+      setTimeout(() => loadScheduledEvents(), 100);
+    } catch (error) {
+      console.error("Error resizing event:", error);
+      logseq.UI.showMsg(`Error resizing event: ${error}`, "error");
+      resizeInfo.revert();
+    }
+  };
+
   const getCalendarApi = (): CalendarApi | null => {
     return calendarRef.current?.getApi() || null;
   };
@@ -435,6 +503,9 @@ export function CalendarView() {
           selectMirror={true}
           dayMaxEvents={true}
           weekends={true}
+          editable={true}
+          eventDurationEditable={true}
+          eventStartEditable={true}
           slotLabelFormat={{
             hour: '2-digit',
             minute: '2-digit',
@@ -448,6 +519,8 @@ export function CalendarView() {
           dateClick={handleDateClick}
           select={handleDateSelect}
           eventClick={handleEventClick}
+          eventDrop={handleEventDrop}
+          eventResize={handleEventResize}
           events={events}
           viewDidMount={(view: any) => {
             setCurrentView(view.view.type as "dayGridMonth" | "timeGridWeek" | "timeGridDay");
