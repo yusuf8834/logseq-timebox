@@ -373,15 +373,15 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     return () => window.removeEventListener("keydown", onKey);
   }, [isFullscreen]);
 
-  const handleDateClick = async (clickInfo: any) => {
-    // Create block when clicking on a date (all-day event)
-    await createBlockInDailyPage(clickInfo.date, undefined, true);
-  };
-
   const handleDateSelect = async (selectInfo: DateSelectArg) => {
     // Create block when selecting a time range; store duration via [dur:...] token
-    const hasTime = selectInfo.start.getHours() !== 0 || selectInfo.start.getMinutes() !== 0;
-    await createBlockInDailyPage(selectInfo.start, undefined, !hasTime, selectInfo.end ?? undefined);
+    const hasTime = selectInfo.start.getHours() !== 0 || selectInfo.start.getMinutes() !== 0 ||
+                    selectInfo.end.getHours() !== 0 || selectInfo.end.getMinutes() !== 0;
+    
+    // For month view clicks or all-day selections, treat as all-day
+    const isAllDay = selectInfo.allDay || !hasTime;
+    
+    await createBlockInDailyPage(selectInfo.start, undefined, isAllDay, selectInfo.end ?? undefined);
     // Unselect after creating
     getCalendarApi()?.unselect();
   };
@@ -736,7 +736,6 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
             minute: '2-digit',
             hour12: false
           }}
-          dateClick={handleDateClick}
           select={handleDateSelect}
           eventClick={handleEventClick}
           eventDrop={handleEventDrop}
