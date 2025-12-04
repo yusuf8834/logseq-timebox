@@ -376,8 +376,18 @@ export function CalendarView() {
     if (blockUuid) {
       try {
         const block = await logseq.Editor.getBlock(blockUuid);
-        if (block?.page?.name) {
-          await logseq.Editor.scrollToBlockInPage(block.page.name, blockUuid);
+        if (block?.page) {
+          const { id: pageId, originalName } = block.page;
+          let pageName = originalName;
+          // If originalName is not available, fetch the page data
+          if (!pageName) {
+            const page = await logseq.Editor.getPage(pageId);
+            pageName = page?.originalName || page?.name;
+          }
+          if (pageName) {
+            await logseq.Editor.scrollToBlockInPage(pageName, blockUuid);
+            logseq.hideMainUI();
+          }
         }
       } catch (error) {
         console.error("Error navigating to block:", error);
