@@ -307,6 +307,15 @@ export function CalendarView() {
           event.backgroundColor = "#d1f4d1";
           event.borderColor = "#a3e4a3";
           event.textColor = "#2d5f2d";
+        } else if (block.marker === "DOING") {
+          event.backgroundColor = "#ffe4cc";
+          event.borderColor = "#ffb366";
+          event.textColor = "#994d00";
+        } else {
+          // Sweet blue for all other tasks (TODO, NOW, etc.)
+          event.backgroundColor = "#cce7ff";
+          event.borderColor = "#66b3ff";
+          event.textColor = "#004d99";
         }
 
         if (!scheduledInfo.allDay) {
