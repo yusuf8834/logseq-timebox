@@ -4,7 +4,9 @@
   "type": "module",
   "author": "yusuf",
   "logseq": {
-    "id": "_simple_sidebar_plugin_2025"
+    "id": "_simple_sidebar_plugin_2025",
+    "title": "Logseq Timebox Calendar",
+    "icon": "./src/list-details.png"
   },
   "main": "dist/index.html",
   "scripts": {

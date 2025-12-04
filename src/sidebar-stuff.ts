@@ -122,7 +122,7 @@ const initializeToolbar = () => {
     key: iconName,
     template: `
       <a class="button relative" data-on-click="toggle" title="Logseq Timebox" aria-label="Logseq Timebox" data-rect-tooltip="Logseq Timebox">
-        <span class="${iconName}"><i class="ti ti-calendar"></i></span>
+        <span class="${iconName}"><i class="ti ti-list-details"></i></span>
       </a>  
     `,
   });
