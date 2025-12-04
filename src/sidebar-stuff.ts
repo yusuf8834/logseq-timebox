@@ -6,6 +6,7 @@ const legacySpacerKey = `${providedUiIdBase}-spacer`;
 const applicationId = packageJson.logseq.id;
 
 const sidebarWidthStorageKey = `${applicationId}-sidebar-width`;
+const sidebarPositionStorageKey = `${applicationId}-sidebar-position`;
 
 const defaultWidth = 400;
 const MIN_WIDTH = 300;
@@ -15,6 +16,7 @@ const MIN_WIDTH = 300;
 // Local state
 let isUiShowing = false;
 let sidebarWidth = NaN;
+let sidebarPosition: "left" | "right" = "left";
 
 // Sidebar width
 const clampWidth = (width: number) => Math.max(MIN_WIDTH, width);
@@ -24,6 +26,10 @@ const getSidebarWidth = () => {
     sidebarWidth = readStoredWidth();
   }
   return sidebarWidth;
+};
+
+const initSidebarPosition = () => {
+  sidebarPosition = readStoredPosition();
 };
 
 // Element ID helper removed (no injected spacer elements anymore)
@@ -44,15 +50,21 @@ const getParentViewportDocument = () => {
 // Spacer logic removed to avoid affecting header/window controls and layout gaps
 
 // Adjust main content area to make room for sidebar
-const adjustMainContent = (width: number) => {
+const adjustMainContent = (width: number, position: "left" | "right") => {
   const doc = getParentViewportDocument();
   if (!doc) return;
   
   // Target the main content container
   const mainContent = doc.querySelector('#main-content-container') as HTMLElement | null;
   if (mainContent) {
-    mainContent.style.marginRight = `${width}px`;
-    mainContent.style.transition = 'margin-right 0.15s ease';
+    if (position === "left") {
+      mainContent.style.marginLeft = `${width}px`;
+      mainContent.style.marginRight = '';
+    } else {
+      mainContent.style.marginRight = `${width}px`;
+      mainContent.style.marginLeft = '';
+    }
+    mainContent.style.transition = 'margin 0.15s ease';
   }
 };
 
@@ -62,13 +74,14 @@ const resetMainContent = () => {
   
   const mainContent = doc.querySelector('#main-content-container') as HTMLElement | null;
   if (mainContent) {
+    mainContent.style.marginLeft = '';
     mainContent.style.marginRight = '';
     mainContent.style.transition = '';
   }
 };
 
 // Main UI helpers
-const setMainUIStyle = (width: number) => {
+const setMainUIStyle = (width: number, position: "left" | "right") => {
   const px = `${width}px`;
 
   // Detect header height so overlay starts below it (keeps top buttons clickable)
@@ -81,7 +94,7 @@ const setMainUIStyle = (width: number) => {
     zIndex: 11,
     width: px,
     top: `${headerHeight}px`,
-    left: `calc(100vw - ${px})`,
+    left: position === "left" ? "0" : `calc(100vw - ${px})`,
     height: `calc(100vh - ${headerHeight}px)`,
   });
 };
@@ -93,8 +106,8 @@ const displayUI = () => {
   logseq.showMainUI();
 
   const width = getSidebarWidth();
-  setMainUIStyle(width);
-  adjustMainContent(width);
+  setMainUIStyle(width, sidebarPosition);
+  adjustMainContent(width, sidebarPosition);
 };
 
 const hideUI = () => {
@@ -180,21 +193,50 @@ const saveStoredWidth = (width: number) => {
   } catch {}
 };
 
+const readStoredPosition = (): "left" | "right" => {
+  try {
+    const raw = getLocalStorage()?.getItem(sidebarPositionStorageKey);
+    return raw === "right" ? "right" : "left";
+  } catch {
+    return "left";
+  }
+};
+
+const saveStoredPosition = (position: "left" | "right") => {
+  try {
+    getLocalStorage()?.setItem(sidebarPositionStorageKey, position);
+  } catch {}
+};
+
 // Called from App component when resizing
 export const updateSidebarWidth = (width: number) => {
   const clampedWidth = clampWidth(width);
   sidebarWidth = clampedWidth;
   saveStoredWidth(clampedWidth);
   if (isUiShowing) {
-    setMainUIStyle(clampedWidth);
-    adjustMainContent(clampedWidth);
+    setMainUIStyle(clampedWidth, sidebarPosition);
+    adjustMainContent(clampedWidth, sidebarPosition);
   }
 };
 
 export const getStoredSidebarWidth = () => getSidebarWidth();
 
+export const getSidebarPosition = () => sidebarPosition;
+
+export const toggleSidebarPosition = () => {
+  sidebarPosition = sidebarPosition === "left" ? "right" : "left";
+  saveStoredPosition(sidebarPosition);
+  if (isUiShowing) {
+    const width = getSidebarWidth();
+    setMainUIStyle(width, sidebarPosition);
+    adjustMainContent(width, sidebarPosition);
+  }
+  return sidebarPosition;
+};
+
 // Initialization
 export const initializeSidebarStuff = () => {
+  initSidebarPosition();
   injectGlobalStyleOverrides();
   cleanupLegacyArtifacts();
   initializeToolbar();

@@ -6,7 +6,12 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import type { DateSelectArg, EventClickArg, CalendarApi, EventInput } from "@fullcalendar/core";
 
-export function CalendarView() {
+interface CalendarViewProps {
+  onTogglePosition?: () => void;
+  position?: "left" | "right";
+}
+
+export function CalendarView({ onTogglePosition, position = "left" }: CalendarViewProps) {
   const [currentView, setCurrentView] = useState<"dayGridMonth" | "timeGridWeek" | "timeGridDay">("timeGridDay");
   const calendarRef = useRef<FullCalendar>(null);
   const [isCreatingBlock, setIsCreatingBlock] = useState(false);
@@ -56,7 +61,7 @@ export function CalendarView() {
       zIndex: 11,
       width: px,
       top: `${headerHeight}px`,
-      left: `calc(100vw - ${px})`,
+      left: "0",
       height: `calc(100vh - ${headerHeight}px)`,
     });
     setIsFullscreen(false);
@@ -540,6 +545,25 @@ export function CalendarView() {
               </svg>
             )}
           </button>
+          {onTogglePosition && (
+            <button
+              onClick={onTogglePosition}
+              className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-logseq-cyan-low-saturation-800/70 text-gray-600 dark:text-logseq-cyan-low-saturation-300"
+              title={position === "left" ? "Move panel to right" : "Move panel to left"}
+            >
+              {position === "left" ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <line x1="15" y1="3" x2="15" y2="21" />
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <line x1="9" y1="3" x2="9" y2="21" />
+                </svg>
+              )}
+            </button>
+          )}
           <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1" />
           <button
             onClick={() => {
