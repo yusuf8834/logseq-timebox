@@ -14,27 +14,16 @@ A calendar sidebar plugin for Logseq that lets you visualize and manage your sch
 - 🗑️ **Clear Schedule** - Remove scheduling from tasks with one click
 - ↔️ **Resizable Sidebar** - Drag to adjust the sidebar width
 - 🔀 **Left/Right Position** - Toggle sidebar position
+
+## Coming Soon
+
 - 🌙 **Dark Mode** - Seamless integration with Logseq's theme
 
 ## Screenshots
 
-### Day View
-![Day View](screenshots/day-view.png)
+### General
+![Day View](screenshots/general.png)
 
-### Week View
-![Week View](screenshots/week-view.png)
-
-### Month View
-![Month View](screenshots/month-view.png)
-
-### Creating a Task
-![Create Task](screenshots/create-task.png)
-
-### Drag and Drop
-![Drag and Drop](screenshots/drag-drop.png)
-
-### Dark Mode
-![Dark Mode](screenshots/dark-mode.png)
 
 ## Installation
 
