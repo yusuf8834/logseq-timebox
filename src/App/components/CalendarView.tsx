@@ -5,6 +5,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import type { DateSelectArg, EventClickArg, CalendarApi, EventInput, EventContentArg } from "@fullcalendar/core";
+import { closeSidebar } from "../../sidebar-stuff";
 
 interface CalendarViewProps {
   onTogglePosition?: () => void;
@@ -690,14 +691,36 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
             </svg>
           </button>
         </div>
-        <button
-          onClick={() => {
-            getCalendarApi()?.today();
-          }}
-          className="px-3 py-1.5 text-xs font-medium rounded-md bg-gray-100 dark:bg-logseq-cyan-low-saturation-800/50 text-gray-700 dark:text-logseq-cyan-low-saturation-300 hover:bg-gray-200 dark:hover:bg-logseq-cyan-low-saturation-800/70"
-        >
-          Today
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              getCalendarApi()?.today();
+            }}
+            className="px-3 py-1.5 text-xs font-medium rounded-md bg-gray-100 dark:bg-logseq-cyan-low-saturation-800/50 text-gray-700 dark:text-logseq-cyan-low-saturation-300 hover:bg-gray-200 dark:hover:bg-logseq-cyan-low-saturation-800/70"
+          >
+            Today
+          </button>
+          <button
+            onClick={() => closeSidebar()}
+            className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-logseq-cyan-low-saturation-800/70 text-gray-600 dark:text-logseq-cyan-low-saturation-300"
+            title="Close panel"
+            aria-label="Close panel"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* View Switcher */}

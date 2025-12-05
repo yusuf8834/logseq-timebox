@@ -117,6 +117,13 @@ const hideUI = () => {
   resetMainContent();
 };
 
+// Public helper to close/hide the sidebar overlay from UI components
+export const closeSidebar = () => {
+  try {
+    hideUI();
+  } catch {}
+};
+
 // Toolbar
 const initializeToolbar = () => {
   const iconName = `${applicationId}--${providedUiIdBase}-toolbar-icon`;
