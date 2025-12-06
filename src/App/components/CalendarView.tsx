@@ -550,9 +550,15 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     
     return (
       <div className="fc-event-content-wrapper" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', height: '100%', overflow: 'hidden', padding: '2px 4px' }}>
-        <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {eventInfo.timeText && <span style={{ marginRight: '4px', fontWeight: 500 }}>{eventInfo.timeText}</span>}
-          <span>{eventInfo.event.title}</span>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          {eventInfo.timeText && (
+            <div style={{ display: 'block', fontWeight: 500, lineHeight: '1.2', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {eventInfo.timeText}
+            </div>
+          )}
+          <div style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: '1.2' }}>
+            {eventInfo.event.title}
+          </div>
         </div>
         <button
           onClick={(e) => handleClearSchedule(blockUuid, e)}
