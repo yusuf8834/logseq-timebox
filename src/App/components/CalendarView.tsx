@@ -40,6 +40,10 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   };
   const [startOfDayHour, setStartOfDayHour] = useState<number>(() => normalizeStartHour((logseq as any)?.settings?.startOfDayHour));
   const [firstDayOfWeek, setFirstDayOfWeek] = useState<number>(() => normalizeFirstDay((logseq as any)?.settings?.firstDayOfWeek));
+  
+  // Click action settings: "none" | "edit" | "goto"
+  const [clickAction, setClickAction] = useState<string>(() => (logseq as any)?.settings?.clickAction || "none");
+  const [doubleClickAction, setDoubleClickAction] = useState<string>(() => (logseq as any)?.settings?.doubleClickAction || "goto");
 
   useEffect(() => {
     const unsubscribe = logseq?.onSettingsChanged?.((newSettings: any) => {
@@ -48,6 +52,12 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       }
       if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "firstDayOfWeek")) {
         setFirstDayOfWeek(normalizeFirstDay(newSettings.firstDayOfWeek));
+      }
+      if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "clickAction")) {
+        setClickAction(newSettings.clickAction || "none");
+      }
+      if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "doubleClickAction")) {
+        setDoubleClickAction(newSettings.doubleClickAction || "goto");
       }
     });
     return () => {
@@ -415,12 +425,12 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     };
   }, []);
 
-  // Allow ESC to exit fullscreen or cancel editing
+  // Allow ESC to save edit or exit fullscreen
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         if (editingEventId) {
-          handleCancelEdit();
+          handleSaveEdit();
         } else if (isFullscreen) {
           exitFullscreen();
         }
@@ -535,10 +545,14 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     }
   };
 
-  // Cancel edit
-  const handleCancelEdit = () => {
-    setEditingEventId(null);
-    setEditingText("");
+  // Perform action based on setting
+  const performAction = async (action: string, blockUuid: string) => {
+    if (action === "edit") {
+      await enterEditMode(blockUuid);
+    } else if (action === "goto") {
+      await navigateToBlock(blockUuid);
+    }
+    // "none" does nothing
   };
 
   const handleEventClick = async (clickInfo: EventClickArg) => {
@@ -553,20 +567,21 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       await handleSaveEdit();
     }
 
-    // Double-click detection - only navigate on double-click
+    // Double-click detection
     if (lastClickedEventRef.current === blockUuid && clickTimeoutRef.current) {
-      // Double-click detected - navigate to block
+      // Double-click detected
       window.clearTimeout(clickTimeoutRef.current);
       clickTimeoutRef.current = null;
       lastClickedEventRef.current = null;
-      await navigateToBlock(blockUuid);
+      await performAction(doubleClickAction, blockUuid);
     } else {
       // First click - wait to see if it's a double-click
       lastClickedEventRef.current = blockUuid;
       clickTimeoutRef.current = window.setTimeout(() => {
-        // Single click - do nothing (just reset state)
+        // Single click confirmed
         clickTimeoutRef.current = null;
         lastClickedEventRef.current = null;
+        performAction(clickAction, blockUuid);
       }, 250);
     }
   };
@@ -739,12 +754,9 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
             onKeyDown={(e) => {
               // Stop propagation for ALL keys to prevent FullCalendar from intercepting
               e.stopPropagation();
-              if (e.key === 'Enter') {
+              if (e.key === 'Enter' || e.key === 'Escape') {
                 e.preventDefault();
                 handleSaveEdit();
-              } else if (e.key === 'Escape') {
-                e.preventDefault();
-                handleCancelEdit();
               }
             }}
             onKeyUp={(e) => e.stopPropagation()}
@@ -771,7 +783,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     }
     
     return (
-      <div className="fc-event-content-wrapper" title={`${fullTitle}\nDouble-click to go to block`} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', height: '100%', overflow: 'hidden', padding: '2px 4px' }}>
+      <div className="fc-event-content-wrapper" title={fullTitle} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', height: '100%', overflow: 'hidden', padding: '2px 4px' }}>
         <div style={{ 
           flex: 1, 
           overflow: 'hidden', 

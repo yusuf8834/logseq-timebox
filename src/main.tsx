@@ -24,6 +24,24 @@ const main = async () => {
       title: "First day of week (0-6)",
       description: "0 = Sunday, 1 = Monday, ... 6 = Saturday",
     },
+    {
+      key: "clickAction",
+      type: "enum",
+      default: "none",
+      title: "Single click action",
+      description: "What happens when you single-click an event",
+      enumChoices: ["none", "edit", "goto"],
+      enumPicker: "select",
+    },
+    {
+      key: "doubleClickAction",
+      type: "enum",
+      default: "goto",
+      title: "Double click action",
+      description: "What happens when you double-click an event",
+      enumChoices: ["none", "edit", "goto"],
+      enumPicker: "select",
+    },
   ]);
 
   console.log("Initializing simple sidebar plugin...");
