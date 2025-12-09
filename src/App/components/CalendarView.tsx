@@ -986,6 +986,45 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           </button>
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => {
+                setCurrentView("timeGridDay");
+                getCalendarApi()?.changeView("timeGridDay");
+              }}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "timeGridDay"
+                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                  : "text-gray-600 dark:text-logseq-cyan-low-saturation-400 hover:bg-gray-100 dark:hover:bg-logseq-cyan-low-saturation-800/50"
+                }`}
+            >
+              Day
+            </button>
+            <button
+              onClick={() => {
+                setCurrentView("timeGridWeek");
+                getCalendarApi()?.changeView("timeGridWeek");
+              }}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "timeGridWeek"
+                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                  : "text-gray-600 dark:text-logseq-cyan-low-saturation-400 hover:bg-gray-100 dark:hover:bg-logseq-cyan-low-saturation-800/50"
+                }`}
+            >
+              Week
+            </button>
+            <button
+              onClick={() => {
+                setCurrentView("dayGridMonth");
+                getCalendarApi()?.changeView("dayGridMonth");
+              }}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "dayGridMonth"
+                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                  : "text-gray-600 dark:text-logseq-cyan-low-saturation-400 hover:bg-gray-100 dark:hover:bg-logseq-cyan-low-saturation-800/50"
+                }`}
+            >
+              Month
+            </button>
+          </div>
+          <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1" />
           <button
             onClick={() => {
               getCalendarApi()?.today();
@@ -1015,46 +1054,6 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
             </svg>
           </button>
         </div>
-      </div>
-
-      {/* View Switcher */}
-      <div className="flex items-center gap-1 px-4 py-2 border-b border-gray-200 dark:border-logseq-cyan-low-saturation-800/70">
-        <button
-          onClick={() => {
-            setCurrentView("timeGridDay");
-            getCalendarApi()?.changeView("timeGridDay");
-          }}
-          className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "timeGridDay"
-              ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-              : "text-gray-600 dark:text-logseq-cyan-low-saturation-400 hover:bg-gray-100 dark:hover:bg-logseq-cyan-low-saturation-800/50"
-            }`}
-        >
-          Day
-        </button>
-        <button
-          onClick={() => {
-            setCurrentView("timeGridWeek");
-            getCalendarApi()?.changeView("timeGridWeek");
-          }}
-          className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "timeGridWeek"
-              ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-              : "text-gray-600 dark:text-logseq-cyan-low-saturation-400 hover:bg-gray-100 dark:hover:bg-logseq-cyan-low-saturation-800/50"
-            }`}
-        >
-          Week
-        </button>
-        <button
-          onClick={() => {
-            setCurrentView("dayGridMonth");
-            getCalendarApi()?.changeView("dayGridMonth");
-          }}
-          className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "dayGridMonth"
-              ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-              : "text-gray-600 dark:text-logseq-cyan-low-saturation-400 hover:bg-gray-100 dark:hover:bg-logseq-cyan-low-saturation-800/50"
-            }`}
-        >
-          Month
-        </button>
       </div>
 
       {/* Calendar */}
