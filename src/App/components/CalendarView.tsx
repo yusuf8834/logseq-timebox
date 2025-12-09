@@ -25,6 +25,16 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   const [editingText, setEditingText] = useState<string>("");
   const editInputRef = useRef<HTMLTextAreaElement>(null);
   const [hoveredEventId, setHoveredEventId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!editingEventId) return;
+    requestAnimationFrame(() => {
+      const el = editInputRef.current;
+      if (!el) return;
+      const len = el.value.length;
+      el.focus();
+      el.setSelectionRange(len, len);
+    });
+  }, [editingEventId, editingText]);
   
   // Click tracking for single vs double click detection
   const clickTimeoutRef = useRef<number | null>(null);
