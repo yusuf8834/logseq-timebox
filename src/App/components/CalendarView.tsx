@@ -737,7 +737,8 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
             onChange={(e) => setEditingText(e.target.value)}
             onBlur={handleSaveEdit}
             onKeyDown={(e) => {
-              // Only handle Enter and Escape, let all other keys through
+              // Stop propagation for ALL keys to prevent FullCalendar from intercepting
+              e.stopPropagation();
               if (e.key === 'Enter') {
                 e.preventDefault();
                 handleSaveEdit();
@@ -745,8 +746,9 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
                 e.preventDefault();
                 handleCancelEdit();
               }
-              // Don't stop propagation for other keys (space, etc.)
             }}
+            onKeyUp={(e) => e.stopPropagation()}
+            onKeyPress={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             onDoubleClick={(e) => e.stopPropagation()}
             style={{
