@@ -139,6 +139,19 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     return Number.isFinite(total) && total > 0 ? total : null;
   };
 
+  // Collapse namespaces inside page refs: [[foo/bar/baz]] -> [[/baz]]
+  const collapseNamespacesInTitle = (title: string): string => {
+    if (!title) return "";
+    return title.replace(/\[\[([^[\]]*\/[^[\]]+)\]\]/g, (_match, path: string) => {
+      // Skip URLs to avoid mangling links
+      if (path.includes("://")) return `[[${path}]]`;
+      const lastSlash = path.lastIndexOf("/");
+      if (lastSlash === -1 || lastSlash === path.length - 1) return `[[${path}]]`;
+      const leaf = path.substring(lastSlash + 1).trim();
+      return leaf ? `[[/${leaf}]]` : `[[${path}]]`;
+    });
+  };
+
   // Extract repeater pattern from SCHEDULED line (e.g., ++1w, .+1d, +1m)
   const parseRepeater = (content: string): string | null => {
     const match = content.match(/SCHEDULED:\s*<[^>]*\s+(\+\+|\.\+|\+)(\d+[hdwmy])>/i);
@@ -548,6 +561,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   const renderEventContent = (eventInfo: EventContentArg) => {
     const blockUuid = eventInfo.event.extendedProps.blockUuid;
     const fullTitle = eventInfo.event.title;
+    const displayTitle = collapseNamespacesInTitle(fullTitle);
     
     return (
       <div className="fc-event-content-wrapper" title={fullTitle} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', height: '100%', overflow: 'hidden', padding: '2px 4px' }}>
@@ -559,7 +573,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           whiteSpace: 'normal',
           lineHeight: '1.2'
         }}>
-          <span>{fullTitle}</span>
+          <span>{displayTitle}</span>
         </div>
         <button
           onClick={(e) => handleClearSchedule(blockUuid, e)}
