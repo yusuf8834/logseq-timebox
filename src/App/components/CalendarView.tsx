@@ -24,6 +24,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState<string>("");
   const editInputRef = useRef<HTMLTextAreaElement>(null);
+  const [hoveredEventId, setHoveredEventId] = useState<string | null>(null);
   
   // Click tracking for single vs double click detection
   const clickTimeoutRef = useRef<number | null>(null);
@@ -790,7 +791,21 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     }
     
     return (
-      <div className="fc-event-content-wrapper" title={fullTitle} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', height: '100%', overflow: 'hidden', padding: '2px 4px' }}>
+      <div 
+        className="fc-event-content-wrapper" 
+        title={fullTitle} 
+        style={{ 
+          display: 'flex', 
+          alignItems: 'flex-start', 
+          width: '100%', 
+          height: '100%', 
+          overflow: 'hidden', 
+          padding: '2px 4px',
+          position: 'relative'
+        }}
+        onMouseEnter={() => setHoveredEventId(blockUuid)}
+        onMouseLeave={() => setHoveredEventId(null)}
+      >
         <div style={{ 
           flex: 1, 
           overflow: 'hidden', 
@@ -801,7 +816,20 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
         }}>
           <span>{displayTitle}</span>
         </div>
-        <div className="fc-event-actions" style={{ display: 'flex', alignItems: 'center', flexShrink: 0, marginLeft: '4px', gap: '2px' }}>
+        <div 
+          className="fc-event-actions" 
+          style={{ 
+            position: 'absolute',
+            top: '2px',
+            right: '2px',
+            display: 'flex', 
+            alignItems: 'center',
+            gap: '2px',
+            opacity: hoveredEventId === blockUuid ? 1 : 0,
+            pointerEvents: hoveredEventId === blockUuid ? 'auto' : 'none',
+            transition: 'opacity 0.15s'
+          }}
+        >
           <button
             onClick={(e) => handleEditClick(blockUuid, e)}
             className="fc-action-btn"
@@ -815,9 +843,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
               borderRadius: '3px',
               backgroundColor: 'rgba(0,0,0,0.1)',
               border: 'none',
-              cursor: 'pointer',
-              opacity: 0,
-              transition: 'opacity 0.15s',
+              cursor: 'pointer'
             }}
           >
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -838,9 +864,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
               borderRadius: '3px',
               backgroundColor: 'rgba(0,0,0,0.1)',
               border: 'none',
-              cursor: 'pointer',
-              opacity: 0,
-              transition: 'opacity 0.15s',
+              cursor: 'pointer'
             }}
           >
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
