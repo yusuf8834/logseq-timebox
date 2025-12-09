@@ -547,9 +547,10 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
 
   const renderEventContent = (eventInfo: EventContentArg) => {
     const blockUuid = eventInfo.event.extendedProps.blockUuid;
+    const fullTitle = eventInfo.event.title;
     
     return (
-      <div className="fc-event-content-wrapper" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', height: '100%', overflow: 'hidden', padding: '2px 4px' }}>
+      <div className="fc-event-content-wrapper" title={fullTitle} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', height: '100%', overflow: 'hidden', padding: '2px 4px' }}>
         <div style={{ 
           flex: 1, 
           overflow: 'hidden', 
@@ -559,7 +560,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           lineHeight: '1.2',
           wordBreak: 'break-word'
         }}>
-          <span>{eventInfo.event.title}</span>
+          <span>{fullTitle}</span>
         </div>
         <button
           onClick={(e) => handleClearSchedule(blockUuid, e)}
