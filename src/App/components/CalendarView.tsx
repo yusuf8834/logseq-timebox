@@ -18,6 +18,32 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   const [isCreatingBlock, setIsCreatingBlock] = useState(false);
   const [events, setEvents] = useState<EventInput[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const normalizeStartHour = (raw: any): number => {
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return 8;
+    return Math.min(23, Math.max(0, Math.floor(n)));
+  };
+  const normalizeFirstDay = (raw: any): number => {
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return 1;
+    return Math.min(6, Math.max(0, Math.floor(n)));
+  };
+  const [startOfDayHour, setStartOfDayHour] = useState<number>(() => normalizeStartHour((logseq as any)?.settings?.startOfDayHour));
+  const [firstDayOfWeek, setFirstDayOfWeek] = useState<number>(() => normalizeFirstDay((logseq as any)?.settings?.firstDayOfWeek));
+
+  useEffect(() => {
+    const unsubscribe = logseq?.onSettingsChanged?.((newSettings: any) => {
+      if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "startOfDayHour")) {
+        setStartOfDayHour(normalizeStartHour(newSettings.startOfDayHour));
+      }
+      if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "firstDayOfWeek")) {
+        setFirstDayOfWeek(normalizeFirstDay(newSettings.firstDayOfWeek));
+      }
+    });
+    return () => {
+      if (typeof unsubscribe === "function") unsubscribe();
+    };
+  }, []);
 
   // Sidebar width restore helpers (mirror sidebar-stuff.ts minimal logic)
   const applicationId = packageJson.logseq.id as string;
@@ -874,6 +900,9 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
             minute: '2-digit',
             hour12: false
           }}
+          firstDay={firstDayOfWeek}
+          slotMinTime={`${startOfDayHour.toString().padStart(2, '0')}:00:00`}
+          scrollTime={`${startOfDayHour.toString().padStart(2, '0')}:00:00`}
           select={handleDateSelect}
           eventClick={handleEventClick}
           eventDrop={handleEventDrop}
