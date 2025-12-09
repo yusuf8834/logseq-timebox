@@ -550,8 +550,15 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     
     return (
       <div className="fc-event-content-wrapper" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', height: '100%', overflow: 'hidden', padding: '2px 4px' }}>
-        <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {eventInfo.timeText && <span style={{ marginRight: '4px', fontWeight: 500 }}>{eventInfo.timeText}</span>}
+        <div style={{ 
+          flex: 1, 
+          overflow: 'hidden', 
+          display: '-webkit-box',
+          WebkitBoxOrient: 'vertical',
+          WebkitLineClamp: 2,
+          lineHeight: '1.2',
+          wordBreak: 'break-word'
+        }}>
           <span>{eventInfo.event.title}</span>
         </div>
         <button
