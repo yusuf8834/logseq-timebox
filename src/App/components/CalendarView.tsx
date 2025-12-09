@@ -554,11 +554,10 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
         <div style={{ 
           flex: 1, 
           overflow: 'hidden', 
-          display: '-webkit-box',
-          WebkitBoxOrient: 'vertical',
-          WebkitLineClamp: 2,
-          lineHeight: '1.2',
-          wordBreak: 'break-word'
+          wordBreak: 'break-word',
+          overflowWrap: 'anywhere',
+          whiteSpace: 'normal',
+          lineHeight: '1.2'
         }}>
           <span>{fullTitle}</span>
         </div>
