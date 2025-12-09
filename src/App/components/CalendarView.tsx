@@ -6,6 +6,7 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import type { DateSelectArg, EventClickArg, CalendarApi, EventInput, EventContentArg } from "@fullcalendar/core";
 import { closeSidebar } from "../../sidebar-stuff";
+import { DB_CHANGED_EVENT } from "../../main";
 
 interface CalendarViewProps {
   onTogglePosition?: () => void;
@@ -393,20 +394,15 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   useEffect(() => {
     loadScheduledEvents();
 
-    // Reload events when database changes
-    let timeoutId: number;
-    const unsubscribe = logseq.DB.onChanged(() => {
-      if (timeoutId) window.clearTimeout(timeoutId);
-      timeoutId = window.setTimeout(() => {
-        loadScheduledEvents();
-      }, 500);
-    });
+    // Listen for database changes from the main plugin context
+    const handleDbChange = () => {
+      loadScheduledEvents();
+    };
+
+    window.addEventListener(DB_CHANGED_EVENT, handleDbChange);
 
     return () => {
-      if (timeoutId) window.clearTimeout(timeoutId);
-      if (typeof unsubscribe === "function") {
-        unsubscribe();
-      }
+      window.removeEventListener(DB_CHANGED_EVENT, handleDbChange);
     };
   }, []);
 

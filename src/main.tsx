@@ -5,6 +5,9 @@ import "./index.css";
 import App from "./App/App.tsx";
 import { initializeSidebarStuff } from "./sidebar-stuff.ts";
 
+// Custom event name for database changes - used to notify React components
+export const DB_CHANGED_EVENT = "logseq-timebox-db-changed";
+
 const main = async () => {
   logseq.useSettingsSchema([
     {
@@ -25,6 +28,19 @@ const main = async () => {
 
   console.log("Initializing simple sidebar plugin...");
   initializeSidebarStuff();
+
+  // Set up database change listener in the main plugin context
+  // This ensures it works correctly and dispatches events to the React app
+  let dbChangeTimeout: number | undefined;
+  logseq.DB.onChanged(() => {
+    // Debounce to avoid excessive reloads
+    if (dbChangeTimeout) window.clearTimeout(dbChangeTimeout);
+    dbChangeTimeout = window.setTimeout(() => {
+      // Dispatch custom event that React components can listen to
+      window.dispatchEvent(new CustomEvent(DB_CHANGED_EVENT));
+    }, 300);
+  });
+
   console.log("Simple sidebar plugin initialized");
 };
 
