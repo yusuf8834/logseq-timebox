@@ -1046,18 +1046,6 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
             </button>
             <button
               onClick={() => {
-                setCurrentView("timeGridWeek");
-                getCalendarApi()?.changeView("timeGridWeek");
-              }}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "timeGridWeek"
-                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                  : "text-gray-600 dark:text-logseq-cyan-low-saturation-400 hover:bg-gray-100 dark:hover:bg-logseq-cyan-low-saturation-800/50"
-                }`}
-            >
-              Week
-            </button>
-            <button
-              onClick={() => {
                 setCurrentView("timeGridMulti");
                 getCalendarApi()?.changeView("timeGridMulti");
                 goToTodayMinusOne();
@@ -1068,6 +1056,18 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
                 }`}
             >
               {multiDaySpan}-day
+            </button>
+            <button
+              onClick={() => {
+                setCurrentView("timeGridWeek");
+                getCalendarApi()?.changeView("timeGridWeek");
+              }}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "timeGridWeek"
+                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                  : "text-gray-600 dark:text-logseq-cyan-low-saturation-400 hover:bg-gray-100 dark:hover:bg-logseq-cyan-low-saturation-800/50"
+                }`}
+            >
+              Week
             </button>
             <button
               onClick={() => {
