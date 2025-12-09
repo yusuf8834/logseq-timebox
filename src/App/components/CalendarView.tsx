@@ -19,6 +19,15 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   const [isCreatingBlock, setIsCreatingBlock] = useState(false);
   const [events, setEvents] = useState<EventInput[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  
+  // Inline editing state
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState<string>("");
+  const editInputRef = useRef<HTMLInputElement>(null);
+  
+  // Click tracking for single vs double click detection
+  const clickTimeoutRef = useRef<number | null>(null);
+  const lastClickedEventRef = useRef<string | null>(null);
   const normalizeStartHour = (raw: any): number => {
     const n = Number(raw);
     if (!Number.isFinite(n)) return 8;
@@ -406,17 +415,38 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     };
   }, []);
 
-  // Allow ESC to exit fullscreen
+  // Allow ESC to exit fullscreen or cancel editing
   useEffect(() => {
-    if (!isFullscreen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        exitFullscreen();
+        if (editingEventId) {
+          handleCancelEdit();
+        } else if (isFullscreen) {
+          exitFullscreen();
+        }
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isFullscreen]);
+  }, [isFullscreen, editingEventId]);
+
+  // Cleanup click timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (clickTimeoutRef.current) {
+        window.clearTimeout(clickTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Cancel editing when clicking on calendar background
+  const handleCalendarClick = (e: React.MouseEvent) => {
+    // Only cancel if clicking on empty calendar area, not on events
+    const target = e.target as HTMLElement;
+    if (!target.closest('.fc-event') && editingEventId) {
+      handleSaveEdit();
+    }
+  };
 
   const handleDateSelect = async (selectInfo: DateSelectArg) => {
     // Create block when selecting a time range; store duration via [dur:...] token
@@ -431,27 +461,126 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     getCalendarApi()?.unselect();
   };
 
+  // Navigate to block (used on double-click)
+  const navigateToBlock = async (blockUuid: string) => {
+    try {
+      const block = await logseq.Editor.getBlock(blockUuid);
+      if (block?.page) {
+        const { id: pageId, originalName } = block.page;
+        let pageName = originalName;
+        if (!pageName) {
+          const page = await logseq.Editor.getPage(pageId);
+          pageName = page?.originalName || page?.name;
+        }
+        if (pageName) {
+          await logseq.Editor.scrollToBlockInPage(pageName, blockUuid);
+        }
+      }
+    } catch (error) {
+      console.error("Error navigating to block:", error);
+    }
+  };
+
+  // Enter edit mode (used on single-click)
+  const enterEditMode = async (blockUuid: string) => {
+    try {
+      const block = await logseq.Editor.getBlock(blockUuid);
+      if (block) {
+        const contentLines = (block.content || "").split("\n");
+        const title = contentLines.find((line: string) => !line.startsWith("SCHEDULED:") && !line.startsWith("DEADLINE:")) || "";
+        setEditingEventId(blockUuid);
+        setEditingText(title);
+        // Focus input after render
+        setTimeout(() => editInputRef.current?.focus(), 50);
+      }
+    } catch (error) {
+      console.error("Error entering edit mode:", error);
+    }
+  };
+
+  // Save inline edit
+  const handleSaveEdit = async () => {
+    if (!editingEventId || !editingText.trim()) {
+      setEditingEventId(null);
+      setEditingText("");
+      return;
+    }
+
+    try {
+      const block = await logseq.Editor.getBlock(editingEventId);
+      if (!block) {
+        setEditingEventId(null);
+        setEditingText("");
+        return;
+      }
+
+      // Replace the title line while preserving SCHEDULED/DEADLINE lines
+      const lines = (block.content || "").split("\n");
+      const titleIndex = lines.findIndex((line: string) => !line.startsWith("SCHEDULED:") && !line.startsWith("DEADLINE:"));
+      if (titleIndex !== -1) {
+        lines[titleIndex] = editingText;
+      } else {
+        lines.unshift(editingText);
+      }
+
+      await logseq.Editor.updateBlock(editingEventId, lines.join("\n"));
+      logseq.UI.showMsg("Event updated", "success");
+      setTimeout(() => loadScheduledEvents(), 100);
+    } catch (error) {
+      console.error("Error updating event:", error);
+      logseq.UI.showMsg(`Error updating event: ${error}`, "error");
+    } finally {
+      setEditingEventId(null);
+      setEditingText("");
+    }
+  };
+
+  // Cancel edit
+  const handleCancelEdit = () => {
+    setEditingEventId(null);
+    setEditingText("");
+  };
+
   const handleEventClick = async (clickInfo: EventClickArg) => {
     const blockUuid = clickInfo.event.extendedProps.blockUuid;
-    if (blockUuid) {
-      try {
-        const block = await logseq.Editor.getBlock(blockUuid);
-        if (block?.page) {
-          const { id: pageId, originalName } = block.page;
-          let pageName = originalName;
-          // If originalName is not available, fetch the page data
-          if (!pageName) {
-            const page = await logseq.Editor.getPage(pageId);
-            pageName = page?.originalName || page?.name;
-          }
-          if (pageName) {
-            await logseq.Editor.scrollToBlockInPage(pageName, blockUuid);
-          }
-        }
-      } catch (error) {
-        console.error("Error navigating to block:", error);
-      }
+    if (!blockUuid) return;
+
+    // If already editing this event, do nothing (let the input handle it)
+    if (editingEventId === blockUuid) return;
+
+    // If editing another event, save it first
+    if (editingEventId && editingEventId !== blockUuid) {
+      await handleSaveEdit();
     }
+
+    // Double-click detection - only navigate on double-click
+    if (lastClickedEventRef.current === blockUuid && clickTimeoutRef.current) {
+      // Double-click detected - navigate to block
+      window.clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+      lastClickedEventRef.current = null;
+      await navigateToBlock(blockUuid);
+    } else {
+      // First click - wait to see if it's a double-click
+      lastClickedEventRef.current = blockUuid;
+      clickTimeoutRef.current = window.setTimeout(() => {
+        // Single click - do nothing (just reset state)
+        clickTimeoutRef.current = null;
+        lastClickedEventRef.current = null;
+      }, 250);
+    }
+  };
+
+  // Handle edit button click
+  const handleEditClick = async (blockUuid: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Clear any pending click timeout
+    if (clickTimeoutRef.current) {
+      window.clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+      lastClickedEventRef.current = null;
+    }
+    await enterEditMode(blockUuid);
   };
 
   const handleEventDrop = async (dropInfo: any) => {
@@ -584,9 +713,63 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     const blockUuid = eventInfo.event.extendedProps.blockUuid;
     const fullTitle = eventInfo.event.title;
     const displayTitle = collapseNamespacesInTitle(fullTitle);
+    const isEditing = editingEventId === blockUuid;
+    
+    if (isEditing) {
+      return (
+        <div 
+          className="fc-event-content-wrapper" 
+          style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            width: '100%', 
+            height: '100%', 
+            padding: '2px 4px' 
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+        >
+          <input
+            ref={editInputRef}
+            type="text"
+            value={editingText}
+            onChange={(e) => setEditingText(e.target.value)}
+            onBlur={handleSaveEdit}
+            onKeyDown={(e) => {
+              // Only handle Enter and Escape, let all other keys through
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleSaveEdit();
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                handleCancelEdit();
+              }
+              // Don't stop propagation for other keys (space, etc.)
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              outline: 'none',
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              color: 'inherit',
+              fontSize: 'inherit',
+              fontFamily: 'inherit',
+              padding: '2px 4px',
+              margin: '0',
+              borderRadius: '2px',
+            }}
+            autoFocus
+          />
+        </div>
+      );
+    }
     
     return (
-      <div className="fc-event-content-wrapper" title={fullTitle} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', height: '100%', overflow: 'hidden', padding: '2px 4px' }}>
+      <div className="fc-event-content-wrapper" title={`${fullTitle}\nDouble-click to go to block`} style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', width: '100%', height: '100%', overflow: 'hidden', padding: '2px 4px' }}>
         <div style={{ 
           flex: 1, 
           overflow: 'hidden', 
@@ -597,31 +780,54 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
         }}>
           <span>{displayTitle}</span>
         </div>
-        <button
-          onClick={(e) => handleClearSchedule(blockUuid, e)}
-          className="fc-clear-btn"
-          title="Clear schedule"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '16px',
-            height: '16px',
-            borderRadius: '3px',
-            backgroundColor: 'rgba(0,0,0,0.1)',
-            border: 'none',
-            cursor: 'pointer',
-            flexShrink: 0,
-            marginLeft: '4px',
-            opacity: 0,
-            transition: 'opacity 0.15s',
-          }}
-        >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
+        <div className="fc-event-actions" style={{ display: 'flex', alignItems: 'center', flexShrink: 0, marginLeft: '4px', gap: '2px' }}>
+          <button
+            onClick={(e) => handleEditClick(blockUuid, e)}
+            className="fc-action-btn"
+            title="Edit"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '16px',
+              height: '16px',
+              borderRadius: '3px',
+              backgroundColor: 'rgba(0,0,0,0.1)',
+              border: 'none',
+              cursor: 'pointer',
+              opacity: 0,
+              transition: 'opacity 0.15s',
+            }}
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </button>
+          <button
+            onClick={(e) => handleClearSchedule(blockUuid, e)}
+            className="fc-action-btn"
+            title="Clear schedule"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '16px',
+              height: '16px',
+              borderRadius: '3px',
+              backgroundColor: 'rgba(0,0,0,0.1)',
+              border: 'none',
+              cursor: 'pointer',
+              opacity: 0,
+              transition: 'opacity 0.15s',
+            }}
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
       </div>
     );
   };
@@ -807,7 +1013,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       </div>
 
       {/* Calendar */}
-      <div className="flex-1 overflow-hidden p-4">
+      <div className="flex-1 overflow-hidden p-4" onClick={handleCalendarClick}>
         <style>{`
           .fc {
             height: 100%;
@@ -865,10 +1071,10 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           .fc-timegrid-now-indicator-arrow {
             border-color: rgb(239 68 68);
           }
-          .fc-event:hover .fc-clear-btn {
+          .fc-event:hover .fc-action-btn {
             opacity: 1 !important;
           }
-          .fc-clear-btn:hover {
+          .fc-action-btn:hover {
             background-color: rgba(0,0,0,0.2) !important;
           }
         `}</style>
