@@ -25,6 +25,13 @@ const main = async () => {
       description: "0 = Sunday, 1 = Monday, ... 6 = Saturday",
     },
     {
+      key: "multiDayViewSpan",
+      type: "number",
+      default: 3,
+      title: "Multi-day view length (days)",
+      description: "Number of days shown in the multi-day time-grid view (min 2, max 14).",
+    },
+    {
       key: "clickAction",
       type: "enum",
       default: "none",

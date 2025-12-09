@@ -13,8 +13,10 @@ interface CalendarViewProps {
   position?: "left" | "right";
 }
 
+type CalendarViewType = "dayGridMonth" | "timeGridWeek" | "timeGridDay" | "timeGridMulti";
+
 export function CalendarView({ onTogglePosition, position = "left" }: CalendarViewProps) {
-  const [currentView, setCurrentView] = useState<"dayGridMonth" | "timeGridWeek" | "timeGridDay">("timeGridDay");
+  const [currentView, setCurrentView] = useState<CalendarViewType>("timeGridDay");
   const calendarRef = useRef<FullCalendar>(null);
   const [isCreatingBlock, setIsCreatingBlock] = useState(false);
   const [events, setEvents] = useState<EventInput[]>([]);
@@ -49,8 +51,14 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     if (!Number.isFinite(n)) return 1;
     return Math.min(6, Math.max(0, Math.floor(n)));
   };
+  const normalizeMultiDaySpan = (raw: any): number => {
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return 3;
+    return Math.min(14, Math.max(2, Math.floor(n)));
+  };
   const [startOfDayHour, setStartOfDayHour] = useState<number>(() => normalizeStartHour((logseq as any)?.settings?.startOfDayHour));
   const [firstDayOfWeek, setFirstDayOfWeek] = useState<number>(() => normalizeFirstDay((logseq as any)?.settings?.firstDayOfWeek));
+  const [multiDaySpan, setMultiDaySpan] = useState<number>(() => normalizeMultiDaySpan((logseq as any)?.settings?.multiDayViewSpan));
   
   // Click action settings: "none" | "edit" | "goto"
   const [clickAction, setClickAction] = useState<string>(() => (logseq as any)?.settings?.clickAction || "none");
@@ -63,6 +71,9 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       }
       if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "firstDayOfWeek")) {
         setFirstDayOfWeek(normalizeFirstDay(newSettings.firstDayOfWeek));
+      }
+      if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "multiDayViewSpan")) {
+        setMultiDaySpan(normalizeMultiDaySpan(newSettings.multiDayViewSpan));
       }
       if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "clickAction")) {
         setClickAction(newSettings.clickAction || "none");
@@ -892,6 +903,21 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     return calendarRef.current?.getApi() || null;
   };
 
+  const goToTodayMinusOne = () => {
+    const api = getCalendarApi();
+    if (!api) return;
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    api.gotoDate(d);
+  };
+
+  useEffect(() => {
+    if (currentView === "timeGridMulti") {
+      getCalendarApi()?.changeView("timeGridMulti");
+      goToTodayMinusOne();
+    }
+  }, [multiDaySpan]); 
+
   return (
     <div className="flex flex-col h-full" style={isFullscreen ? { marginLeft: '25%', marginRight: '25%', marginTop: 10, marginBottom: 10 } : undefined}>
       {/* Header */}
@@ -1024,6 +1050,19 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
             </button>
             <button
               onClick={() => {
+                setCurrentView("timeGridMulti");
+                getCalendarApi()?.changeView("timeGridMulti");
+                goToTodayMinusOne();
+              }}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "timeGridMulti"
+                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                  : "text-gray-600 dark:text-logseq-cyan-low-saturation-400 hover:bg-gray-100 dark:hover:bg-logseq-cyan-low-saturation-800/50"
+                }`}
+            >
+              {multiDaySpan}-day
+            </button>
+            <button
+              onClick={() => {
                 setCurrentView("dayGridMonth");
                 getCalendarApi()?.changeView("dayGridMonth");
               }}
@@ -1144,6 +1183,13 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           dayMaxEvents={true}
           weekends={true}
           editable={true}
+          views={{
+            timeGridMulti: {
+              type: "timeGrid",
+              duration: { days: multiDaySpan },
+              buttonText: `${multiDaySpan}-day`,
+            },
+          }}
           eventDurationEditable={true}
           eventStartEditable={true}
           nowIndicator={true}
@@ -1167,7 +1213,10 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           eventContent={renderEventContent}
           events={events}
           viewDidMount={(view: any) => {
-            setCurrentView(view.view.type as "dayGridMonth" | "timeGridWeek" | "timeGridDay");
+            setCurrentView(view.view.type as CalendarViewType);
+            if (view.view.type === "timeGridMulti") {
+              goToTodayMinusOne();
+            }
           }}
         />
       </div>
