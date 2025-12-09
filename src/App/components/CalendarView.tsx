@@ -910,6 +910,14 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     d.setDate(d.getDate() - 1);
     api.gotoDate(d);
   };
+  const shiftByDays = (delta: number) => {
+    const api = getCalendarApi();
+    if (!api) return;
+    const current = api.getDate();
+    const next = new Date(current);
+    next.setDate(next.getDate() + delta);
+    api.gotoDate(next);
+  };
 
   useEffect(() => {
     if (currentView === "timeGridMulti") {
@@ -987,7 +995,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1" />
           <button
             onClick={() => {
-              getCalendarApi()?.prev();
+              shiftByDays(-1);
             }}
             className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-logseq-cyan-low-saturation-800/70 text-gray-600 dark:text-logseq-cyan-low-saturation-300"
           >
@@ -1005,7 +1013,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           </button>
           <button
             onClick={() => {
-              getCalendarApi()?.next();
+              shiftByDays(1);
             }}
             className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-logseq-cyan-low-saturation-800/70 text-gray-600 dark:text-logseq-cyan-low-saturation-300"
           >
