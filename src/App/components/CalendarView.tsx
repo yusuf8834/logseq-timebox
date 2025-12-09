@@ -23,7 +23,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   // Inline editing state
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState<string>("");
-  const editInputRef = useRef<HTMLInputElement>(null);
+  const editInputRef = useRef<HTMLTextAreaElement>(null);
   
   // Click tracking for single vs double click detection
   const clickTimeoutRef = useRef<number | null>(null);
@@ -736,25 +736,26 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           className="fc-event-content-wrapper" 
           style={{ 
             display: 'flex', 
-            alignItems: 'center', 
+            alignItems: 'flex-start', 
             width: '100%', 
             height: '100%', 
-            padding: '2px 4px' 
+            padding: '2px 4px',
+            overflow: 'hidden',
           }}
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
           onDoubleClick={(e) => e.stopPropagation()}
         >
-          <input
+          <textarea
             ref={editInputRef}
-            type="text"
             value={editingText}
             onChange={(e) => setEditingText(e.target.value)}
             onBlur={handleSaveEdit}
             onKeyDown={(e) => {
               // Stop propagation for ALL keys to prevent FullCalendar from intercepting
               e.stopPropagation();
-              if (e.key === 'Enter' || e.key === 'Escape') {
+              // Enter without shift saves, Escape also saves
+              if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Escape') {
                 e.preventDefault();
                 handleSaveEdit();
               }
@@ -775,6 +776,12 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
               padding: '2px 4px',
               margin: '0',
               borderRadius: '2px',
+              resize: 'none',
+              overflow: 'hidden',
+              wordBreak: 'break-word',
+              overflowWrap: 'anywhere',
+              whiteSpace: 'normal',
+              lineHeight: '1.2',
             }}
             autoFocus
           />
