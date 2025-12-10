@@ -22,6 +22,7 @@
     "@fullcalendar/timegrid": "^6.1.15",
     "@logseq/libs": "^0.0.17",
     "@tailwindcss/vite": "^4.1.16",
+    "ical.js": "^2.2.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "tailwindcss": "^4.1.16"
@@ -35,4 +36,3 @@
     "vite": "^7.1.7"
   }
 }
-
