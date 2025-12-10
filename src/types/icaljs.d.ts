@@ -3,3 +3,5 @@ declare module "ical.js" {
   export = ICAL;
 }
 
+
+
