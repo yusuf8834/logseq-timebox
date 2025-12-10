@@ -363,6 +363,11 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     };
   }, []);
 
+  // Reload events when externalVisible changes
+  useEffect(() => {
+    loadScheduledEvents();
+  }, [externalVisible]);
+
   // Allow ESC to save edit or exit fullscreen
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -815,11 +820,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
             </button>
           )}
           <button
-            onClick={() => {
-              const next = !externalVisible;
-              setExternalVisible(next);
-              setTimeout(() => loadScheduledEvents(), 20);
-            }}
+            onClick={() => setExternalVisible((prev) => !prev)}
             className={`px-2 py-1 text-xs font-medium rounded-md ${externalVisible ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300" : "bg-gray-100 dark:bg-logseq-cyan-low-saturation-800/50 text-gray-700 dark:text-logseq-cyan-low-saturation-300"}`}
             title="Toggle external calendars"
           >
