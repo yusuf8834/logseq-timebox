@@ -49,6 +49,21 @@ const main = async () => {
       enumChoices: ["none", "edit", "goto"],
       enumPicker: "select",
     },
+    {
+      key: "externalIcsUrls",
+      type: "string",
+      default: "",
+      title: "External calendar ICS URLs (one per line)",
+      description: "Read-only feeds to show in the calendar.",
+      inputAs: "textarea",
+    },
+    {
+      key: "showExternalCalendars",
+      type: "boolean",
+      default: true,
+      title: "Show external calendars by default",
+      description: "Toggle visibility of ICS events.",
+    },
   ]);
 
   console.log("Initializing simple sidebar plugin...");

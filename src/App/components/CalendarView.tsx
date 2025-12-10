@@ -19,6 +19,7 @@ import {
   updateDurationTokenInContent 
 } from "./calendarUtils";
 import { CalendarEventContent } from "./CalendarEventContent";
+import { fetchExternalIcs } from "./externalIcs";
 
 interface CalendarViewProps {
   onTogglePosition?: () => void;
@@ -39,6 +40,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   const [editingText, setEditingText] = useState<string>("");
   const editInputRef = useRef<HTMLTextAreaElement | null>(null);
   const [hoveredEventId, setHoveredEventId] = useState<string | null>(null);
+  const [externalVisible, setExternalVisible] = useState<boolean>(() => (logseq as any)?.settings?.showExternalCalendars ?? true);
   useEffect(() => {
     if (!editingEventId) return;
     requestAnimationFrame(() => {
@@ -71,6 +73,13 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       }
       if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "multiDayViewSpan")) {
         setMultiDaySpan(normalizeMultiDaySpan(newSettings.multiDayViewSpan));
+      }
+      if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "showExternalCalendars")) {
+        setExternalVisible(!!newSettings.showExternalCalendars);
+        setTimeout(() => loadScheduledEvents(), 50);
+      }
+      if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "externalIcsUrls")) {
+        setTimeout(() => loadScheduledEvents(), 50);
       }
       if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "clickAction")) {
         setClickAction(newSettings.clickAction || "none");
@@ -321,7 +330,19 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
         calendarEvents.push(event);
       }
 
-      setEvents(calendarEvents);
+      // Fetch external ICS if enabled
+      let externalEvents: EventInput[] = [];
+      if (externalVisible) {
+        const urls = (((logseq as any)?.settings?.externalIcsUrls || "") as string)
+          .split(/\r?\n/)
+          .map((u) => u.trim())
+          .filter(Boolean);
+        if (urls.length) {
+          externalEvents = await fetchExternalIcs(urls);
+        }
+      }
+
+      setEvents([...calendarEvents, ...externalEvents]);
     } catch (error) {
       console.error("Error loading scheduled events:", error);
     }
@@ -475,6 +496,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   const handleEventClick = async (clickInfo: EventClickArg) => {
     const blockUuid = clickInfo.event.extendedProps.blockUuid;
     if (!blockUuid) return;
+    if (clickInfo.event.extendedProps?.source === "external") return;
 
     // If already editing this event, do nothing (let the input handle it)
     if (editingEventId === blockUuid) return;
@@ -517,6 +539,10 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
 
   const handleEventDrop = async (dropInfo: any) => {
     const blockUuid = dropInfo.event.extendedProps.blockUuid;
+    if (dropInfo.event.extendedProps?.source === "external") {
+      dropInfo.revert();
+      return;
+    }
     const newDate = dropInfo.event.start;
     const allDay = dropInfo.event.allDay;
 
@@ -564,6 +590,10 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
 
   const handleEventResize = async (resizeInfo: any) => {
     const blockUuid = resizeInfo.event.extendedProps.blockUuid;
+    if (resizeInfo.event.extendedProps?.source === "external") {
+      resizeInfo.revert();
+      return;
+    }
     const newStart = resizeInfo.event.start;
     const newEnd = resizeInfo.event.end;
     const allDay = resizeInfo.event.allDay;
@@ -784,6 +814,17 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
               )}
             </button>
           )}
+          <button
+            onClick={() => {
+              const next = !externalVisible;
+              setExternalVisible(next);
+              setTimeout(() => loadScheduledEvents(), 20);
+            }}
+            className={`px-2 py-1 text-xs font-medium rounded-md ${externalVisible ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300" : "bg-gray-100 dark:bg-logseq-cyan-low-saturation-800/50 text-gray-700 dark:text-logseq-cyan-low-saturation-300"}`}
+            title="Toggle external calendars"
+          >
+            External {externalVisible ? "on" : "off"}
+          </button>
           <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1" />
           <button
             onClick={handlePrev}
