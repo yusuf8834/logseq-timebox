@@ -7,13 +7,25 @@ import interactionPlugin from "@fullcalendar/interaction";
 import type { DateSelectArg, EventClickArg, CalendarApi, EventInput, EventContentArg } from "@fullcalendar/core";
 import { closeSidebar } from "../../sidebar-stuff";
 import { DB_CHANGED_EVENT } from "../../main";
+import { 
+  normalizeStartHour, 
+  normalizeFirstDay, 
+  normalizeMultiDaySpan, 
+  formatDateForJournal, 
+  formatScheduledDate, 
+  parseDurationToken, 
+  collapseNamespacesInTitle, 
+  parseRepeater, 
+  updateDurationTokenInContent 
+} from "./calendarUtils";
+import { CalendarEventContent } from "./CalendarEventContent";
 
 interface CalendarViewProps {
   onTogglePosition?: () => void;
   position?: "left" | "right";
 }
 
-type CalendarViewType = "dayGridMonth" | "timeGridWeek" | "timeGridDay" | "timeGridMulti";
+export type CalendarViewType = "dayGridMonth" | "timeGridWeek" | "timeGridDay" | "timeGridMulti";
 
 export function CalendarView({ onTogglePosition, position = "left" }: CalendarViewProps) {
   const [currentView, setCurrentView] = useState<CalendarViewType>("timeGridDay");
@@ -25,7 +37,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   // Inline editing state
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState<string>("");
-  const editInputRef = useRef<HTMLTextAreaElement>(null);
+  const editInputRef = useRef<HTMLTextAreaElement | null>(null);
   const [hoveredEventId, setHoveredEventId] = useState<string | null>(null);
   useEffect(() => {
     if (!editingEventId) return;
@@ -41,21 +53,6 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   // Click tracking for single vs double click detection
   const clickTimeoutRef = useRef<number | null>(null);
   const lastClickedEventRef = useRef<string | null>(null);
-  const normalizeStartHour = (raw: any): number => {
-    const n = Number(raw);
-    if (!Number.isFinite(n)) return 8;
-    return Math.min(23, Math.max(0, Math.floor(n)));
-  };
-  const normalizeFirstDay = (raw: any): number => {
-    const n = Number(raw);
-    if (!Number.isFinite(n)) return 1;
-    return Math.min(6, Math.max(0, Math.floor(n)));
-  };
-  const normalizeMultiDaySpan = (raw: any): number => {
-    const n = Number(raw);
-    if (!Number.isFinite(n)) return 3;
-    return Math.min(14, Math.max(2, Math.floor(n)));
-  };
   const [startOfDayHour, setStartOfDayHour] = useState<number>(() => normalizeStartHour((logseq as any)?.settings?.startOfDayHour));
   const [firstDayOfWeek, setFirstDayOfWeek] = useState<number>(() => normalizeFirstDay((logseq as any)?.settings?.firstDayOfWeek));
   const [multiDaySpan, setMultiDaySpan] = useState<number>(() => normalizeMultiDaySpan((logseq as any)?.settings?.multiDayViewSpan));
@@ -141,108 +138,6 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     else enterFullscreen();
   };
 
-  const formatDateForJournal = (date: Date, format: string): string => {
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-
-    const getOrdinal = (n: number) => {
-      const s = ["th", "st", "nd", "rd"];
-      const v = n % 100;
-      return n + (s[(v - 20) % 10] || s[v] || s[0]);
-    };
-
-    const tokens: Record<string, string> = {
-      yyyy: String(year),
-      MMMM: date.toLocaleDateString("en-US", { month: "long" }),
-      MMM: date.toLocaleDateString("en-US", { month: "short" }),
-      MM: String(month).padStart(2, "0"),
-      M: String(month),
-      dd: String(day).padStart(2, "0"),
-      do: getOrdinal(day),
-      d: String(day),
-      EEEE: date.toLocaleDateString("en-US", { weekday: "long" }),
-      EEE: date.toLocaleDateString("en-US", { weekday: "short" }),
-    };
-
-    const regex = /yyyy|MMMM|MMM|MM|M|dd|do|d|EEEE|EEE/g;
-
-    return format.replace(regex, (match) => tokens[match]);
-  };
-
-  const formatScheduledDate = (date: Date, allDay: boolean): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const dayName = date.toLocaleDateString("en-US", { weekday: "short" });
-
-    if (allDay) {
-      return `${year}-${month}-${day} ${dayName}`;
-    } else {
-      const hours = String(date.getHours()).padStart(2, "0");
-      const minutes = String(date.getMinutes()).padStart(2, "0");
-      return `${year}-${month}-${day} ${dayName} ${hours}:${minutes}`;
-    }
-  };
-
-  // Compact duration token helper: "[d:1h15m]" (write/read)
-  const formatDurationToken = (minutes: number) => {
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    if (h > 0 && m > 0) return `[d:${h}h${m}m]`;
-    if (h > 0) return `[d:${h}h]`;
-    return `[d:${m}m]`;
-  };
-
-  const parseDurationToken = (content: string): number | null => {
-    const match = content.match(/\[d:([0-9hHmM]+)\]/);
-    if (!match) return null;
-    const spec = match[1];
-    let total = 0;
-    const hMatch = spec.match(/(\d+)h/i);
-    const mMatch = spec.match(/(\d+)m/i);
-    if (hMatch) total += parseInt(hMatch[1], 10) * 60;
-    if (mMatch) total += parseInt(mMatch[1], 10);
-    if (total === 0 && /^\d+$/.test(spec)) total = parseInt(spec, 10);
-    return Number.isFinite(total) && total > 0 ? total : null;
-  };
-
-  // Collapse namespaces inside page refs: [[foo/bar/baz]] -> [[/baz]]
-  const collapseNamespacesInTitle = (title: string): string => {
-    if (!title) return "";
-    return title.replace(/\[\[([^[\]]*\/[^[\]]+)\]\]/g, (_match, path: string) => {
-      // Skip URLs to avoid mangling links
-      if (path.includes("://")) return `[[${path}]]`;
-      const lastSlash = path.lastIndexOf("/");
-      if (lastSlash === -1 || lastSlash === path.length - 1) return `[[${path}]]`;
-      const leaf = path.substring(lastSlash + 1).trim();
-      return leaf ? `[[/${leaf}]]` : `[[${path}]]`;
-    });
-  };
-
-  // Extract repeater pattern from SCHEDULED line (e.g., ++1w, .+1d, +1m)
-  const parseRepeater = (content: string): string | null => {
-    const match = content.match(/SCHEDULED:\s*<[^>]*\s+(\+\+|\.\+|\+)(\d+[hdwmy])>/i);
-    if (match) {
-      return match[1] + match[2]; // e.g., "++1w"
-    }
-    return null;
-  };
-
-  const updateDurationTokenInContent = (content: string, minutes: number | null): string => {
-    const lines = (content || "").split("\n");
-    if (lines.length === 0) return content;
-    const firstIndex = lines.findIndex((l) => !/^\s*(SCHEDULED:|DEADLINE:)/.test(l));
-    const idx = firstIndex === -1 ? 0 : firstIndex;
-    let title = lines[idx] || "";
-    // remove existing [d:...] tokens
-    title = title.replace(/\s*\[d:[^\]]+\]/g, "").trimEnd();
-    if (minutes && minutes > 0) {
-      title = `${title} ${formatDurationToken(minutes)}`;
-    }
-    lines[idx] = title;
-    return lines.join("\n");
-  };
 
   const createBlockInDailyPage = async (date: Date, content?: string, allDay: boolean = false, endDate?: Date) => {
     if (isCreatingBlock) return;
@@ -746,158 +641,21 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     }
   };
 
-  const renderEventContent = (eventInfo: EventContentArg) => {
-    const blockUuid = eventInfo.event.extendedProps.blockUuid;
-    const fullTitle = eventInfo.event.title;
-    const displayTitle = collapseNamespacesInTitle(fullTitle);
-    const isEditing = editingEventId === blockUuid;
-    
-    if (isEditing) {
-      return (
-        <div 
-          className="fc-event-content-wrapper" 
-          style={{ 
-            display: 'flex', 
-            alignItems: 'flex-start', 
-            width: '100%', 
-            height: '100%', 
-            padding: '2px 4px',
-            overflow: 'hidden',
-          }}
-          onClick={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-          onDoubleClick={(e) => e.stopPropagation()}
-        >
-          <textarea
-            ref={editInputRef}
-            value={editingText}
-            onChange={(e) => setEditingText(e.target.value)}
-            onBlur={handleSaveEdit}
-            onKeyDown={(e) => {
-              // Stop propagation for ALL keys to prevent FullCalendar from intercepting
-              e.stopPropagation();
-              // Enter without shift saves, Escape also saves
-              if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Escape') {
-                e.preventDefault();
-                handleSaveEdit();
-              }
-            }}
-            onKeyUp={(e) => e.stopPropagation()}
-            onKeyPress={(e) => e.stopPropagation()}
-            onMouseDown={(e) => e.stopPropagation()}
-            onDoubleClick={(e) => e.stopPropagation()}
-            style={{
-              width: '100%',
-              height: '100%',
-              border: 'none',
-              outline: 'none',
-              backgroundColor: 'rgba(255,255,255,0.2)',
-              color: 'inherit',
-              fontSize: 'inherit',
-              fontFamily: 'inherit',
-              padding: '2px 4px',
-              margin: '0',
-              borderRadius: '2px',
-              resize: 'none',
-              overflow: 'hidden',
-              wordBreak: 'break-word',
-              overflowWrap: 'anywhere',
-              whiteSpace: 'normal',
-              lineHeight: '1.2',
-            }}
-            autoFocus
-          />
-        </div>
-      );
-    }
-    
-    return (
-      <div 
-        className="fc-event-content-wrapper" 
-        title={fullTitle} 
-        style={{ 
-          display: 'flex', 
-          alignItems: 'flex-start', 
-          width: '100%', 
-          height: '100%', 
-          overflow: 'hidden', 
-          padding: '2px 4px',
-          position: 'relative'
-        }}
-        onMouseEnter={() => setHoveredEventId(blockUuid)}
-        onMouseLeave={() => setHoveredEventId(null)}
-      >
-        <div style={{ 
-          flex: 1, 
-          overflow: 'hidden', 
-          wordBreak: 'break-word',
-          overflowWrap: 'anywhere',
-          whiteSpace: 'normal',
-          lineHeight: '1.2'
-        }}>
-          <span>{displayTitle}</span>
-        </div>
-        <div 
-          className="fc-event-actions" 
-          style={{ 
-            position: 'absolute',
-            top: '2px',
-            right: '2px',
-            display: 'flex', 
-            flexDirection: 'column',
-            alignItems: 'flex-end',
-            gap: '2px',
-            opacity: hoveredEventId === blockUuid ? 1 : 0,
-            pointerEvents: hoveredEventId === blockUuid ? 'auto' : 'none',
-            transition: 'opacity 0.15s'
-          }}
-        >
-          <button
-            onClick={(e) => handleClearSchedule(blockUuid, e)}
-            className="fc-action-btn"
-            title="Clear schedule"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '16px',
-              height: '16px',
-              borderRadius: '3px',
-              backgroundColor: 'rgba(0,0,0,0.1)',
-              border: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-          <button
-            onClick={(e) => handleEditClick(blockUuid, e)}
-            className="fc-action-btn"
-            title="Edit"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '16px',
-              height: '16px',
-              borderRadius: '3px',
-              backgroundColor: 'rgba(0,0,0,0.1)',
-              border: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
-          </button>
-        </div>
-      </div>
-    );
-  };
+  const renderEventContent = (eventInfo: EventContentArg) => (
+    <CalendarEventContent
+      eventInfo={eventInfo}
+      editingEventId={editingEventId}
+      editingText={editingText}
+      editInputRef={editInputRef}
+      hoveredEventId={hoveredEventId}
+      setHoveredEventId={setHoveredEventId}
+      setEditingText={setEditingText}
+      handleSaveEdit={handleSaveEdit}
+      handleClearSchedule={handleClearSchedule}
+      handleEditClick={handleEditClick}
+      collapseNamespacesInTitle={collapseNamespacesInTitle}
+    />
+  );
 
   const getCalendarApi = (): CalendarApi | null => {
     return calendarRef.current?.getApi() || null;
