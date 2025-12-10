@@ -8,7 +8,11 @@ const EXTERNAL_TEXT = "#5b1b73";
 const WINDOW_PAST_DAYS = 30;
 const WINDOW_FUTURE_DAYS = 120;
 
-const buildEventInput = (summary: string, start: Date, end: Date | null, allDay: boolean, sourceLabel: string): EventInput => {
+const buildEventInput = (summary: string, start: Date, end: Date | null, allDay: boolean, sourceLabel: string, now: Date): EventInput => {
+  const isPast = (end ?? start) < now;
+  const classes = ["fc-external-event"];
+  if (isPast) classes.push("fc-external-event-past");
+  
   const evt: EventInput = {
     title: summary || "Untitled",
     start: start.toISOString(),
@@ -21,7 +25,7 @@ const buildEventInput = (summary: string, start: Date, end: Date | null, allDay:
     borderColor: EXTERNAL_BORDER,
     textColor: EXTERNAL_TEXT,
     editable: false,
-    classNames: ["fc-external-event"],
+    classNames: classes,
   };
   if (end) evt.end = end.toISOString();
   return evt;
@@ -88,7 +92,7 @@ export const fetchExternalIcs = async (urls: string[]): Promise<EventInput[]> =>
                   }
                 }
                 const allDay = next.isDate ?? false;
-                results.push(buildEventInput(event.summary, startDate, endDate, allDay, url));
+                results.push(buildEventInput(event.summary, startDate, endDate, allDay, url, now));
               }
             } catch (recurErr) {
               // If recurrence expansion fails, fall back to single event
@@ -97,7 +101,7 @@ export const fetchExternalIcs = async (urls: string[]): Promise<EventInput[]> =>
               if (inWindow(startDate, windowStart, windowEnd)) {
                 const endDate = event.endDate?.toJSDate?.() ?? null;
                 const allDay = event.startDate.isDate ?? false;
-                results.push(buildEventInput(event.summary, startDate, endDate, allDay, url));
+                results.push(buildEventInput(event.summary, startDate, endDate, allDay, url, now));
               }
             }
           } else {
@@ -105,7 +109,7 @@ export const fetchExternalIcs = async (urls: string[]): Promise<EventInput[]> =>
             if (!inWindow(startDate, windowStart, windowEnd)) continue;
             const endDate = event.endDate?.toJSDate?.() ?? null;
             const allDay = event.startDate.isDate ?? false;
-            results.push(buildEventInput(event.summary, startDate, endDate, allDay, url));
+            results.push(buildEventInput(event.summary, startDate, endDate, allDay, url, now));
           }
         } catch (eventErr) {
           // Skip malformed events

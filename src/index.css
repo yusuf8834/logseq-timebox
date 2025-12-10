@@ -33,3 +33,8 @@
   border-width: 2px !important;
 }
 
+/* Past external events - faded */
+.fc-external-event-past {
+  opacity: 0.5 !important;
+}
+
