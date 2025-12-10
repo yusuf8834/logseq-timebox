@@ -21,6 +21,7 @@ const buildEventInput = (summary: string, start: Date, end: Date | null, allDay:
     borderColor: EXTERNAL_BORDER,
     textColor: EXTERNAL_TEXT,
     editable: false,
+    classNames: ["fc-external-event"],
   };
   if (end) evt.end = end.toISOString();
   return evt;

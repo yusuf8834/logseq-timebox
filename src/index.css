@@ -27,5 +27,9 @@
   --color-logseq-cyan-950: oklch(0.248 0.044 217.5);
 }
 
-
+/* External calendar events - dashed border */
+.fc-external-event {
+  border-style: dashed !important;
+  border-width: 2px !important;
+}
 
