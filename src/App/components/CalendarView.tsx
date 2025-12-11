@@ -87,7 +87,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     };
   }, []);
 
-  const createBlockInDailyPage = async (date: Date, content?: string, allDay: boolean = false, endDate?: Date) => {
+  const createBlockInDailyPage = useCallback(async (date: Date, content?: string, allDay: boolean = false, endDate?: Date) => {
     if (isCreatingBlock) return;
 
     try {
@@ -155,7 +155,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     } finally {
       setIsCreatingBlock(false);
     }
-  };
+  }, [isCreatingBlock, refreshEvents]);
 
   // Allow ESC to save edit or exit fullscreen
   useEffect(() => {
@@ -170,7 +170,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isFullscreen, editingEventId]);
+  }, [isFullscreen, editingEventId, handleSaveEdit, exitFullscreen]);
 
   // Cleanup click timeout on unmount
   useEffect(() => {
@@ -201,7 +201,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     await createBlockInDailyPage(selectInfo.start, undefined, isAllDay, selectInfo.end ?? undefined);
     // Unselect after creating
     getCalendarApi()?.unselect();
-  }, []);
+  }, [createBlockInDailyPage]);
 
   // Navigate to block (used on double-click)
   const navigateToBlock = useCallback(async (blockUuid: string) => {
