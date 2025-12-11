@@ -43,8 +43,9 @@ export const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
   onOpenSettings,
 }) => {
   return (
-    <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-logseq-cyan-low-saturation-800/70">
-      <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center justify-between gap-1 px-2 py-2 border-b border-gray-200 dark:border-logseq-cyan-low-saturation-800/70">
+      {/* Left group: Settings, Actions & Navigation */}
+      <div className="flex flex-wrap items-center gap-1">
         <button
           onClick={onOpenSettings}
           className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-logseq-cyan-low-saturation-800/70 text-gray-600 dark:text-logseq-cyan-low-saturation-300"
@@ -110,12 +111,12 @@ export const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
         )}
         <button
           onClick={onToggleExternal}
-          className={`px-2 py-1 text-xs font-medium rounded-md ${externalVisible ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300" : "bg-gray-100 dark:bg-logseq-cyan-low-saturation-800/50 text-gray-700 dark:text-logseq-cyan-low-saturation-300"}`}
+          className={`px-2 py-1 text-xs font-medium rounded-md whitespace-nowrap ${externalVisible ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300" : "bg-gray-100 dark:bg-logseq-cyan-low-saturation-800/50 text-gray-700 dark:text-logseq-cyan-low-saturation-300"}`}
           title="Toggle external calendars"
         >
           External {externalVisible ? "on" : "off"}
         </button>
-        <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1" />
+        <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-0.5" />
         <button
           onClick={onPrev}
           className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-logseq-cyan-low-saturation-800/70 text-gray-600 dark:text-logseq-cyan-low-saturation-300"
@@ -133,11 +134,13 @@ export const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
           </svg>
         </button>
       </div>
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1">
+
+      {/* Right group: View Selectors, Today & Close */}
+      <div className="flex flex-wrap items-center gap-1">
+        <div className="flex items-center gap-0.5">
           <button
             onClick={onSelectDay}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "timeGridDay"
+            className={`px-2 py-1 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "timeGridDay"
                 ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
                 : "text-gray-600 dark:text-logseq-cyan-low-saturation-400 hover:bg-gray-100 dark:hover:bg-logseq-cyan-low-saturation-800/50"
               }`}
@@ -146,16 +149,16 @@ export const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
           </button>
           <button
             onClick={onSelectMulti}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "timeGridMulti"
+            className={`px-2 py-1 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "timeGridMulti"
                 ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
                 : "text-gray-600 dark:text-logseq-cyan-low-saturation-400 hover:bg-gray-100 dark:hover:bg-logseq-cyan-low-saturation-800/50"
               }`}
           >
-            {multiDaySpan}-day
+            {multiDaySpan}d
           </button>
           <button
             onClick={onSelectWeek}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "timeGridWeek"
+            className={`px-2 py-1 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "timeGridWeek"
                 ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
                 : "text-gray-600 dark:text-logseq-cyan-low-saturation-400 hover:bg-gray-100 dark:hover:bg-logseq-cyan-low-saturation-800/50"
               }`}
@@ -164,7 +167,7 @@ export const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
           </button>
           <button
             onClick={onSelectMonth}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "dayGridMonth"
+            className={`px-2 py-1 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "dayGridMonth"
                 ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
                 : "text-gray-600 dark:text-logseq-cyan-low-saturation-400 hover:bg-gray-100 dark:hover:bg-logseq-cyan-low-saturation-800/50"
               }`}
@@ -172,10 +175,10 @@ export const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
             Month
           </button>
         </div>
-        <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1" />
+        <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-0.5" />
         <button
           onClick={onToday}
-          className="px-3 py-1.5 text-xs font-medium rounded-md bg-gray-100 dark:bg-logseq-cyan-low-saturation-800/50 text-gray-700 dark:text-logseq-cyan-low-saturation-300 hover:bg-gray-200 dark:hover:bg-logseq-cyan-low-saturation-800/70"
+          className="px-2 py-1 text-xs font-medium rounded-md bg-gray-100 dark:bg-logseq-cyan-low-saturation-800/50 text-gray-700 dark:text-logseq-cyan-low-saturation-300 hover:bg-gray-200 dark:hover:bg-logseq-cyan-low-saturation-800/70"
         >
           Today
         </button>
@@ -194,4 +197,3 @@ export const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
     </div>
   );
 };
-
