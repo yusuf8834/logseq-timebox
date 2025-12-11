@@ -182,15 +182,15 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   }, []);
 
   // Cancel editing when clicking on calendar background
-  const handleCalendarClick = (e: React.MouseEvent) => {
+  const handleCalendarClick = useCallback((e: React.MouseEvent) => {
     // Only cancel if clicking on empty calendar area, not on events
     const target = e.target as HTMLElement;
     if (!target.closest('.fc-event') && editingEventId) {
       handleSaveEdit();
     }
-  };
+  }, [editingEventId, handleSaveEdit]);
 
-  const handleDateSelect = async (selectInfo: DateSelectArg) => {
+  const handleDateSelect = useCallback(async (selectInfo: DateSelectArg) => {
     // Create block when selecting a time range; store duration via [dur:...] token
     const hasTime = selectInfo.start.getHours() !== 0 || selectInfo.start.getMinutes() !== 0 ||
                     selectInfo.end.getHours() !== 0 || selectInfo.end.getMinutes() !== 0;
@@ -201,10 +201,10 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     await createBlockInDailyPage(selectInfo.start, undefined, isAllDay, selectInfo.end ?? undefined);
     // Unselect after creating
     getCalendarApi()?.unselect();
-  };
+  }, []);
 
   // Navigate to block (used on double-click)
-  const navigateToBlock = async (blockUuid: string) => {
+  const navigateToBlock = useCallback(async (blockUuid: string) => {
     try {
       const block = await logseq.Editor.getBlock(blockUuid);
       if (block?.page) {
@@ -221,19 +221,19 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     } catch (error) {
       console.error("Error navigating to block:", error);
     }
-  };
+  }, []);
 
   // Perform action based on setting
-  const performAction = async (action: string, blockUuid: string) => {
+  const performAction = useCallback(async (action: ClickAction, blockUuid: string) => {
     if (action === "edit") {
       await enterEditMode(blockUuid);
     } else if (action === "goto") {
       await navigateToBlock(blockUuid);
     }
     // "none" does nothing
-  };
+  }, [enterEditMode, navigateToBlock]);
 
-  const handleEventClick = async (clickInfo: EventClickArg) => {
+  const handleEventClick = useCallback(async (clickInfo: EventClickArg) => {
     const blockUuid = clickInfo.event.extendedProps.blockUuid;
     if (!blockUuid) return;
     if (clickInfo.event.extendedProps?.source === "external") return;
@@ -263,7 +263,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
         performAction(clickAction, blockUuid);
       }, 250);
     }
-  };
+  }, [editingEventId, handleSaveEdit, performAction, doubleClickAction, clickAction]);
 
   // Handle edit button click
   const handleEditClick = useCallback(async (blockUuid: string, e: React.MouseEvent) => {
@@ -277,7 +277,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     await enterEditMode(blockUuid);
   }, [enterEditMode]);
 
-  const handleEventDrop = async (dropInfo: any) => {
+  const handleEventDrop = useCallback(async (dropInfo: any) => {
     const blockUuid = dropInfo.event.extendedProps.blockUuid;
     if (dropInfo.event.extendedProps?.source === "external") {
       dropInfo.revert();
@@ -326,9 +326,9 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       logseq.UI.showMsg(`Error moving event: ${error}`, "error");
       dropInfo.revert();
     }
-  };
+  }, [refreshEvents]);
 
-  const handleEventResize = async (resizeInfo: any) => {
+  const handleEventResize = useCallback(async (resizeInfo: any) => {
     const blockUuid = resizeInfo.event.extendedProps.blockUuid;
     if (resizeInfo.event.extendedProps?.source === "external") {
       resizeInfo.revert();
@@ -376,7 +376,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       logseq.UI.showMsg(`Error resizing event: ${error}`, "error");
       resizeInfo.revert();
     }
-  };
+  }, [refreshEvents]);
 
   const handleClearSchedule = useCallback(async (blockUuid: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent event click from firing
