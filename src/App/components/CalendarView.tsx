@@ -1,12 +1,10 @@
-import { useState, useRef, useEffect } from "react";
-import packageJson from "../../../package.json" with { type: "json" };
+import { useState, useRef, useEffect, useCallback } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import type { DateSelectArg, EventClickArg, CalendarApi, EventInput, EventContentArg } from "@fullcalendar/core";
+import type { DateSelectArg, EventClickArg, CalendarApi, EventContentArg } from "@fullcalendar/core";
 import { closeSidebar } from "../../sidebar-stuff";
-import { DB_CHANGED_EVENT } from "../../main";
 import { 
   normalizeStartHour, 
   normalizeFirstDay, 
@@ -19,7 +17,10 @@ import {
   updateDurationTokenInContent 
 } from "./calendarUtils";
 import { CalendarEventContent } from "./CalendarEventContent";
-import { fetchExternalIcs } from "./externalIcs";
+import { CalendarToolbar } from "./CalendarToolbar";
+import { useScheduledEvents } from "./hooks/useScheduledEvents";
+import { useInlineEdit } from "./hooks/useInlineEdit";
+import { useFullscreen } from "./hooks/useFullscreen";
 
 interface CalendarViewProps {
   onTogglePosition?: () => void;
@@ -27,30 +28,30 @@ interface CalendarViewProps {
 }
 
 export type CalendarViewType = "dayGridMonth" | "timeGridWeek" | "timeGridDay" | "timeGridMulti";
+export type ClickAction = "none" | "edit" | "goto";
 
 export function CalendarView({ onTogglePosition, position = "left" }: CalendarViewProps) {
   const [currentView, setCurrentView] = useState<CalendarViewType>("timeGridDay");
   const calendarRef = useRef<FullCalendar>(null);
   const [isCreatingBlock, setIsCreatingBlock] = useState(false);
-  const [events, setEvents] = useState<EventInput[]>([]);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   
-  // Inline editing state
-  const [editingEventId, setEditingEventId] = useState<string | null>(null);
-  const [editingText, setEditingText] = useState<string>("");
-  const editInputRef = useRef<HTMLTextAreaElement | null>(null);
-  const [hoveredEventId, setHoveredEventId] = useState<string | null>(null);
-  const [externalVisible, setExternalVisible] = useState<boolean>(() => (logseq as any)?.settings?.showExternalCalendars ?? true);
-  useEffect(() => {
-    if (!editingEventId) return;
-    requestAnimationFrame(() => {
-      const el = editInputRef.current;
-      if (!el) return;
-      const len = el.value.length;
-      el.focus();
-      el.setSelectionRange(len, len);
-    });
-  }, [editingEventId]);
+  // Use fullscreen hook
+  const { isFullscreen, exitFullscreen, toggleFullscreen } = useFullscreen();
+  
+  // Use the scheduled events hook
+  const { events, externalVisible, setExternalVisible, refreshEvents } = useScheduledEvents();
+  
+  // Use the inline edit hook
+  const {
+    editingEventId,
+    editingText,
+    editInputRef,
+    hoveredEventId,
+    setHoveredEventId,
+    setEditingText,
+    enterEditMode,
+    handleSaveEdit,
+  } = useInlineEdit(refreshEvents);
   
   // Click tracking for single vs double click detection
   const clickTimeoutRef = useRef<number | null>(null);
@@ -59,9 +60,9 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   const [firstDayOfWeek, setFirstDayOfWeek] = useState<number>(() => normalizeFirstDay((logseq as any)?.settings?.firstDayOfWeek));
   const [multiDaySpan, setMultiDaySpan] = useState<number>(() => normalizeMultiDaySpan((logseq as any)?.settings?.multiDayViewSpan));
   
-  // Click action settings: "none" | "edit" | "goto"
-  const [clickAction, setClickAction] = useState<string>(() => (logseq as any)?.settings?.clickAction || "none");
-  const [doubleClickAction, setDoubleClickAction] = useState<string>(() => (logseq as any)?.settings?.doubleClickAction || "goto");
+  // Click action settings
+  const [clickAction, setClickAction] = useState<ClickAction>(() => ((logseq as any)?.settings?.clickAction || "none") as ClickAction);
+  const [doubleClickAction, setDoubleClickAction] = useState<ClickAction>(() => ((logseq as any)?.settings?.doubleClickAction || "goto") as ClickAction);
 
   useEffect(() => {
     const unsubscribe = logseq?.onSettingsChanged?.((newSettings: any) => {
@@ -74,79 +75,17 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "multiDayViewSpan")) {
         setMultiDaySpan(normalizeMultiDaySpan(newSettings.multiDayViewSpan));
       }
-      if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "showExternalCalendars")) {
-        setExternalVisible(!!newSettings.showExternalCalendars);
-        setTimeout(() => loadScheduledEvents(), 50);
-      }
-      if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "externalIcsUrls")) {
-        setTimeout(() => loadScheduledEvents(), 50);
-      }
       if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "clickAction")) {
-        setClickAction(newSettings.clickAction || "none");
+        setClickAction((newSettings.clickAction || "none") as ClickAction);
       }
       if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "doubleClickAction")) {
-        setDoubleClickAction(newSettings.doubleClickAction || "goto");
+        setDoubleClickAction((newSettings.doubleClickAction || "goto") as ClickAction);
       }
     });
     return () => {
       if (typeof unsubscribe === "function") unsubscribe();
     };
   }, []);
-
-  // Sidebar width restore helpers (mirror sidebar-stuff.ts minimal logic)
-  const applicationId = packageJson.logseq.id as string;
-  const sidebarWidthStorageKey = `${applicationId}-sidebar-width`;
-  const MIN_WIDTH = 300;
-  const defaultWidth = 400;
-  const clampWidth = (w: number) => Math.max(MIN_WIDTH, w);
-  const readStoredWidth = () => {
-    try {
-      const raw = window.parent?.window?.localStorage?.getItem(sidebarWidthStorageKey);
-      if (!raw) return defaultWidth;
-      const parsed = Number.parseInt(raw, 10);
-      return Number.isFinite(parsed) ? clampWidth(parsed) : defaultWidth;
-    } catch {
-      return defaultWidth;
-    }
-  };
-
-  const computeHeaderHeight = () => {
-    const headerEl = window.parent?.document?.querySelector('.cp__header') as HTMLElement | null;
-    return headerEl?.offsetHeight ?? 40;
-  };
-
-  const enterFullscreen = () => {
-    const headerHeight = computeHeaderHeight();
-    logseq.setMainUIInlineStyle({
-      position: "absolute",
-      zIndex: 11,
-      width: "100vw",
-      top: `${headerHeight}px`,
-      left: "0",
-      height: `calc(100vh - ${headerHeight}px)`,
-    });
-    setIsFullscreen(true);
-  };
-
-  const exitFullscreen = () => {
-    const px = `${readStoredWidth()}px`;
-    const headerHeight = computeHeaderHeight();
-    logseq.setMainUIInlineStyle({
-      position: "absolute",
-      zIndex: 11,
-      width: px,
-      top: `${headerHeight}px`,
-      left: "0",
-      height: `calc(100vh - ${headerHeight}px)`,
-    });
-    setIsFullscreen(false);
-  };
-
-  const toggleFullscreen = () => {
-    if (isFullscreen) exitFullscreen();
-    else enterFullscreen();
-  };
-
 
   const createBlockInDailyPage = async (date: Date, content?: string, allDay: boolean = false, endDate?: Date) => {
     if (isCreatingBlock) return;
@@ -203,7 +142,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
 
       if (block) {
         // Reload events to show the new scheduled block
-        loadScheduledEvents();
+        refreshEvents();
         // Navigate to the journal page
         await logseq.Editor.scrollToBlockInPage(page.name, block.uuid);
         logseq.UI.showMsg(`Block created in ${date.toLocaleDateString()}`, "success");
@@ -217,156 +156,6 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       setIsCreatingBlock(false);
     }
   };
-
-  const parseScheduledTime = (content: string): { date: Date; allDay: boolean; durationMins?: number } | null => {
-    // Parse SCHEDULED: <YYYY-MM-DD ddd HH:mm> or SCHEDULED: <YYYY-MM-DD ddd>
-    const scheduledMatch = content.match(/SCHEDULED:\s*<([^>]+)>/);
-    if (!scheduledMatch) return null;
-
-    const scheduledStr = scheduledMatch[1];
-    // Extract date and optional time
-    const dateTimeMatch = scheduledStr.match(/(\d{4}-\d{2}-\d{2})\s+\w+\s*(\d{2}:\d{2})?/);
-    if (!dateTimeMatch) return null;
-
-    const dateStr = dateTimeMatch[1];
-    const timeStr = dateTimeMatch[2];
-    const allDay = !timeStr;
-
-    if (allDay) {
-      const date = new Date(dateStr + "T00:00:00");
-      return { date, allDay: true };
-    } else {
-      const date = new Date(dateStr + "T" + timeStr + ":00");
-      // Try to parse duration token [d:...]
-      const durationMins = parseDurationToken(content) ?? undefined;
-      return { date, allDay: false, durationMins };
-    }
-  };
-
-  const loadScheduledEvents = async () => {
-    try {
-      // Query blocks with scheduled property
-      const scheduledBlocks = await logseq.DB.datascriptQuery(`
-        [:find (pull
-          ?block
-          [:block/uuid
-            :block/content
-            :block/marker
-            :block/scheduled
-            :block/deadline
-            {:block/page
-              [:db/id :block/name :block/original-name :block/journal-day :block/journal?]}])
-          :where
-          [?block :block/scheduled]
-          (or-join [?block]
-            (and
-              [?block :block/marker ?marker]
-              [(contains? #{"TODO" "DOING" "NOW" "LATER" "WAITING" "DONE" "CANCELED"} ?marker)])
-            [(missing? $ ?block :block/marker)])]
-      `);
-
-      if (!scheduledBlocks || scheduledBlocks.length === 0) {
-        setEvents([]);
-        return;
-      }
-
-      const calendarEvents: EventInput[] = [];
-
-      for (const result of scheduledBlocks) {
-        const block = result[0];
-        if (!block || !block.scheduled) continue;
-
-        // Parse scheduled date
-        let scheduledInfo = parseScheduledTime(block.content || "");
-        if (!scheduledInfo) {
-          // Fallback to block.scheduled property (YYYYMMDD format)
-          const scheduledStr = String(block.scheduled);
-          const year = parseInt(scheduledStr.substring(0, 4));
-          const month = parseInt(scheduledStr.substring(4, 6)) - 1;
-          const day = parseInt(scheduledStr.substring(6, 8));
-          scheduledInfo = { date: new Date(year, month, day), allDay: true };
-        }
-
-        // Get block title (first line of content without SCHEDULED)
-        const contentLines = (block.content || "").split("\n");
-        const title = contentLines.find((line: string) => !line.startsWith("SCHEDULED:") && !line.startsWith("DEADLINE:")) || "Untitled";
-        const cleanTitle = title.replace(/^\[(TODO|DOING|NOW|LATER|WAITING|DONE|CANCELED)\]\s*/, "").trim();
-
-        const event: EventInput = {
-          id: block.uuid,
-          title: cleanTitle,
-          start: scheduledInfo.date.toISOString(),
-          allDay: scheduledInfo.allDay,
-          extendedProps: {
-            blockUuid: block.uuid,
-            marker: block.marker,
-          },
-        };
-
-        // Set soft green background for DONE tasks
-        if (block.marker === "DONE") {
-          event.backgroundColor = "#d1f4d1";
-          event.borderColor = "#a3e4a3";
-          event.textColor = "#2d5f2d";
-        } else if (block.marker === "DOING") {
-          event.backgroundColor = "#ffe4cc";
-          event.borderColor = "#ffb366";
-          event.textColor = "#994d00";
-        } else {
-          // Sweet blue for all other tasks (TODO, NOW, etc.)
-          event.backgroundColor = "#cce7ff";
-          event.borderColor = "#66b3ff";
-          event.textColor = "#004d99";
-        }
-
-        if (!scheduledInfo.allDay) {
-          const durMins = (scheduledInfo as any).durationMins as number | undefined;
-          if (durMins && durMins > 0) {
-            const end = new Date(scheduledInfo.date.getTime() + durMins * 60000);
-            event.end = end.toISOString();
-          }
-        }
-
-        calendarEvents.push(event);
-      }
-
-      // Fetch external ICS if enabled
-      let externalEvents: EventInput[] = [];
-      if (externalVisible) {
-        const urls = (((logseq as any)?.settings?.externalIcsUrls || "") as string)
-          .split(/\r?\n/)
-          .map((u) => u.trim())
-          .filter(Boolean);
-        if (urls.length) {
-          externalEvents = await fetchExternalIcs(urls);
-        }
-      }
-
-      setEvents([...calendarEvents, ...externalEvents]);
-    } catch (error) {
-      console.error("Error loading scheduled events:", error);
-    }
-  };
-
-  useEffect(() => {
-    loadScheduledEvents();
-
-    // Listen for database changes from the main plugin context
-    const handleDbChange = () => {
-      loadScheduledEvents();
-    };
-
-    window.addEventListener(DB_CHANGED_EVENT, handleDbChange);
-
-    return () => {
-      window.removeEventListener(DB_CHANGED_EVENT, handleDbChange);
-    };
-  }, []);
-
-  // Reload events when externalVisible changes
-  useEffect(() => {
-    loadScheduledEvents();
-  }, [externalVisible]);
 
   // Allow ESC to save edit or exit fullscreen
   useEffect(() => {
@@ -434,60 +223,6 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     }
   };
 
-  // Enter edit mode (used on single-click)
-  const enterEditMode = async (blockUuid: string) => {
-    try {
-      const block = await logseq.Editor.getBlock(blockUuid);
-      if (block) {
-        const contentLines = (block.content || "").split("\n");
-        const title = contentLines.find((line: string) => !line.startsWith("SCHEDULED:") && !line.startsWith("DEADLINE:")) || "";
-        setEditingEventId(blockUuid);
-        setEditingText(title);
-        // Focus input after render
-        setTimeout(() => editInputRef.current?.focus(), 50);
-      }
-    } catch (error) {
-      console.error("Error entering edit mode:", error);
-    }
-  };
-
-  // Save inline edit
-  const handleSaveEdit = async () => {
-    if (!editingEventId || !editingText.trim()) {
-      setEditingEventId(null);
-      setEditingText("");
-      return;
-    }
-
-    try {
-      const block = await logseq.Editor.getBlock(editingEventId);
-      if (!block) {
-        setEditingEventId(null);
-        setEditingText("");
-        return;
-      }
-
-      // Replace the title line while preserving SCHEDULED/DEADLINE lines
-      const lines = (block.content || "").split("\n");
-      const titleIndex = lines.findIndex((line: string) => !line.startsWith("SCHEDULED:") && !line.startsWith("DEADLINE:"));
-      if (titleIndex !== -1) {
-        lines[titleIndex] = editingText;
-      } else {
-        lines.unshift(editingText);
-      }
-
-      await logseq.Editor.updateBlock(editingEventId, lines.join("\n"));
-      logseq.UI.showMsg("Event updated", "success");
-      setTimeout(() => loadScheduledEvents(), 100);
-    } catch (error) {
-      console.error("Error updating event:", error);
-      logseq.UI.showMsg(`Error updating event: ${error}`, "error");
-    } finally {
-      setEditingEventId(null);
-      setEditingText("");
-    }
-  };
-
   // Perform action based on setting
   const performAction = async (action: string, blockUuid: string) => {
     if (action === "edit") {
@@ -531,7 +266,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   };
 
   // Handle edit button click
-  const handleEditClick = async (blockUuid: string, e: React.MouseEvent) => {
+  const handleEditClick = useCallback(async (blockUuid: string, e: React.MouseEvent) => {
     e.stopPropagation();
     // Clear any pending click timeout
     if (clickTimeoutRef.current) {
@@ -540,7 +275,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       lastClickedEventRef.current = null;
     }
     await enterEditMode(blockUuid);
-  };
+  }, [enterEditMode]);
 
   const handleEventDrop = async (dropInfo: any) => {
     const blockUuid = dropInfo.event.extendedProps.blockUuid;
@@ -585,7 +320,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       logseq.UI.showMsg("Event moved successfully", "success");
       
       // Reload events to reflect changes
-      setTimeout(() => loadScheduledEvents(), 100);
+      refreshEvents();
     } catch (error) {
       console.error("Error moving event:", error);
       logseq.UI.showMsg(`Error moving event: ${error}`, "error");
@@ -635,7 +370,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       logseq.UI.showMsg("Event resized successfully", "success");
       
       // Reload events to reflect changes
-      setTimeout(() => loadScheduledEvents(), 100);
+      refreshEvents();
     } catch (error) {
       console.error("Error resizing event:", error);
       logseq.UI.showMsg(`Error resizing event: ${error}`, "error");
@@ -643,7 +378,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     }
   };
 
-  const handleClearSchedule = async (blockUuid: string, e: React.MouseEvent) => {
+  const handleClearSchedule = useCallback(async (blockUuid: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent event click from firing
     
     try {
@@ -669,14 +404,14 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       logseq.UI.showMsg("Schedule cleared", "success");
       
       // Reload events to reflect changes
-      setTimeout(() => loadScheduledEvents(), 100);
+      refreshEvents();
     } catch (error) {
       console.error("Error clearing schedule:", error);
       logseq.UI.showMsg(`Error clearing schedule: ${error}`, "error");
     }
-  };
+  }, [refreshEvents]);
 
-  const renderEventContent = (eventInfo: EventContentArg) => (
+  const renderEventContent = useCallback((eventInfo: EventContentArg) => (
     <CalendarEventContent
       eventInfo={eventInfo}
       editingEventId={editingEventId}
@@ -690,7 +425,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       handleEditClick={handleEditClick}
       collapseNamespacesInTitle={collapseNamespacesInTitle}
     />
-  );
+  ), [editingEventId, editingText, hoveredEventId, handleSaveEdit, handleClearSchedule, handleEditClick]);
 
   const getCalendarApi = (): CalendarApi | null => {
     return calendarRef.current?.getApi() || null;
@@ -735,214 +470,39 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
 
   return (
     <div className="flex flex-col h-full" style={isFullscreen ? { marginLeft: '25%', marginRight: '25%', marginTop: 10, marginBottom: 10 } : undefined}>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-logseq-cyan-low-saturation-800/70">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => logseq.showSettingsUI?.()}
-            className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-logseq-cyan-low-saturation-800/70 text-gray-600 dark:text-logseq-cyan-low-saturation-300"
-            title="Open settings"
-            aria-label="Open settings"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.3.31.48.73.49 1.17V10a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
-            </svg>
-          </button>
-          <button
-            onClick={() => loadScheduledEvents()}
-            className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-logseq-cyan-low-saturation-800/70 text-gray-600 dark:text-logseq-cyan-low-saturation-300"
-            title="Refresh events"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-              <path d="M3 3v5h5" />
-              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
-              <path d="M16 21h5v-5" />
-            </svg>
-          </button>
-          <button
-            onClick={toggleFullscreen}
-            className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-logseq-cyan-low-saturation-800/70 text-gray-600 dark:text-logseq-cyan-low-saturation-300"
-            title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-          >
-            {isFullscreen ? (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 9 3 9 3 3" /><line x1="3" y1="3" x2="10" y2="10" />
-                <polyline points="15 9 21 9 21 3" /><line x1="14" y1="10" x2="21" y2="3" />
-                <polyline points="15 15 21 15 21 21" /><line x1="14" y1="14" x2="21" y2="21" />
-                <polyline points="9 15 3 15 3 21" /><line x1="3" y1="21" x2="10" y2="14" />
-              </svg>
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 3 21 3 21 9" /><line x1="21" y1="3" x2="14" y2="10" />
-                <polyline points="9 3 3 3 3 9" /><line x1="3" y1="3" x2="10" y2="10" />
-                <polyline points="21 15 21 21 15 21" /><line x1="21" y1="21" x2="14" y2="14" />
-                <polyline points="3 15 3 21 9 21" /><line x1="3" y1="21" x2="10" y2="14" />
-              </svg>
-            )}
-          </button>
-          {onTogglePosition && (
-            <button
-              onClick={onTogglePosition}
-              className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-logseq-cyan-low-saturation-800/70 text-gray-600 dark:text-logseq-cyan-low-saturation-300"
-              title={position === "left" ? "Move panel to right" : "Move panel to left"}
-            >
-              {position === "left" ? (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <line x1="15" y1="3" x2="15" y2="21" />
-                </svg>
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                  <line x1="9" y1="3" x2="9" y2="21" />
-                </svg>
-              )}
-            </button>
-          )}
-          <button
-            onClick={() => setExternalVisible((prev) => !prev)}
-            className={`px-2 py-1 text-xs font-medium rounded-md ${externalVisible ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300" : "bg-gray-100 dark:bg-logseq-cyan-low-saturation-800/50 text-gray-700 dark:text-logseq-cyan-low-saturation-300"}`}
-            title="Toggle external calendars"
-          >
-            External {externalVisible ? "on" : "off"}
-          </button>
-          <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1" />
-          <button
-            onClick={handlePrev}
-            className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-logseq-cyan-low-saturation-800/70 text-gray-600 dark:text-logseq-cyan-low-saturation-300"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            >
-              <path d="M10 12 L6 8 L10 4" />
-            </svg>
-          </button>
-          <button
-            onClick={handleNext}
-            className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-logseq-cyan-low-saturation-800/70 text-gray-600 dark:text-logseq-cyan-low-saturation-300"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            >
-              <path d="M6 4 L10 8 L6 12" />
-            </svg>
-          </button>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => {
-                setCurrentView("timeGridDay");
-                getCalendarApi()?.changeView("timeGridDay");
-              }}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "timeGridDay"
-                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                  : "text-gray-600 dark:text-logseq-cyan-low-saturation-400 hover:bg-gray-100 dark:hover:bg-logseq-cyan-low-saturation-800/50"
-                }`}
-            >
-              Day
-            </button>
-            <button
-              onClick={() => {
-                setCurrentView("timeGridMulti");
-                getCalendarApi()?.changeView("timeGridMulti");
-                goToTodayMinusOne();
-              }}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "timeGridMulti"
-                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                  : "text-gray-600 dark:text-logseq-cyan-low-saturation-400 hover:bg-gray-100 dark:hover:bg-logseq-cyan-low-saturation-800/50"
-                }`}
-            >
-              {multiDaySpan}-day
-            </button>
-            <button
-              onClick={() => {
-                setCurrentView("timeGridWeek");
-                getCalendarApi()?.changeView("timeGridWeek");
-              }}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "timeGridWeek"
-                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                  : "text-gray-600 dark:text-logseq-cyan-low-saturation-400 hover:bg-gray-100 dark:hover:bg-logseq-cyan-low-saturation-800/50"
-                }`}
-            >
-              Week
-            </button>
-            <button
-              onClick={() => {
-                setCurrentView("dayGridMonth");
-                getCalendarApi()?.changeView("dayGridMonth");
-              }}
-              className={`px-3 py-1.5 text-xs font-medium rounded-md capitalize transition-colors ${currentView === "dayGridMonth"
-                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                  : "text-gray-600 dark:text-logseq-cyan-low-saturation-400 hover:bg-gray-100 dark:hover:bg-logseq-cyan-low-saturation-800/50"
-                }`}
-            >
-              Month
-            </button>
-          </div>
-          <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1" />
-          <button
-            onClick={() => {
-              getCalendarApi()?.today();
-            }}
-            className="px-3 py-1.5 text-xs font-medium rounded-md bg-gray-100 dark:bg-logseq-cyan-low-saturation-800/50 text-gray-700 dark:text-logseq-cyan-low-saturation-300 hover:bg-gray-200 dark:hover:bg-logseq-cyan-low-saturation-800/70"
-          >
-            Today
-          </button>
-          <button
-            onClick={() => closeSidebar()}
-            className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-logseq-cyan-low-saturation-800/70 text-gray-600 dark:text-logseq-cyan-low-saturation-300"
-            title="Close panel"
-            aria-label="Close panel"
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
-        </div>
-      </div>
+      <CalendarToolbar
+        currentView={currentView}
+        multiDaySpan={multiDaySpan}
+        isFullscreen={isFullscreen}
+        position={position}
+        externalVisible={externalVisible}
+        onRefresh={refreshEvents}
+        onToggleFullscreen={toggleFullscreen}
+        onTogglePosition={onTogglePosition}
+        onToggleExternal={() => setExternalVisible((prev) => !prev)}
+        onPrev={handlePrev}
+        onNext={handleNext}
+        onSelectDay={() => {
+          setCurrentView("timeGridDay");
+          getCalendarApi()?.changeView("timeGridDay");
+        }}
+        onSelectMulti={() => {
+          setCurrentView("timeGridMulti");
+          getCalendarApi()?.changeView("timeGridMulti");
+          goToTodayMinusOne();
+        }}
+        onSelectWeek={() => {
+          setCurrentView("timeGridWeek");
+          getCalendarApi()?.changeView("timeGridWeek");
+        }}
+        onSelectMonth={() => {
+          setCurrentView("dayGridMonth");
+          getCalendarApi()?.changeView("dayGridMonth");
+        }}
+        onToday={() => getCalendarApi()?.today()}
+        onClose={closeSidebar}
+        onOpenSettings={() => logseq.showSettingsUI?.()}
+      />
 
       {/* Calendar */}
       <div className="flex-1 overflow-hidden p-4" onClick={handleCalendarClick}>

@@ -6,9 +6,11 @@ interface CalendarToolbarProps {
   multiDaySpan: number;
   isFullscreen: boolean;
   position: "left" | "right";
+  externalVisible: boolean;
   onRefresh: () => void;
   onToggleFullscreen: () => void;
   onTogglePosition?: () => void;
+  onToggleExternal: () => void;
   onPrev: () => void;
   onNext: () => void;
   onSelectDay: () => void;
@@ -25,9 +27,11 @@ export const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
   multiDaySpan,
   isFullscreen,
   position,
+  externalVisible,
   onRefresh,
   onToggleFullscreen,
   onTogglePosition,
+  onToggleExternal,
   onPrev,
   onNext,
   onSelectDay,
@@ -104,6 +108,13 @@ export const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
             )}
           </button>
         )}
+        <button
+          onClick={onToggleExternal}
+          className={`px-2 py-1 text-xs font-medium rounded-md ${externalVisible ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300" : "bg-gray-100 dark:bg-logseq-cyan-low-saturation-800/50 text-gray-700 dark:text-logseq-cyan-low-saturation-300"}`}
+          title="Toggle external calendars"
+        >
+          External {externalVisible ? "on" : "off"}
+        </button>
         <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1" />
         <button
           onClick={onPrev}

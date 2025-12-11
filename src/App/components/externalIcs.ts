@@ -125,7 +125,3 @@ export const fetchExternalIcs = async (urls: string[]): Promise<EventInput[]> =>
   return results;
 };
 
-export const isExternalEvent = (event: EventInput | any): boolean => {
-  return event?.extendedProps?.source === "external";
-};
-
