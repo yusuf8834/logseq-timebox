@@ -50,7 +50,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       el.focus();
       el.setSelectionRange(len, len);
     });
-  }, [editingEventId, editingText]);
+  }, [editingEventId]);
   
   // Click tracking for single vs double click detection
   const clickTimeoutRef = useRef<number | null>(null);
