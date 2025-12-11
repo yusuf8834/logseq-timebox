@@ -3,7 +3,8 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import type { DateSelectArg, EventClickArg, CalendarApi, EventContentArg } from "@fullcalendar/core";
+import type { DateSelectArg, EventClickArg, CalendarApi, EventContentArg, EventDropArg, ViewMountArg } from "@fullcalendar/core";
+import type { EventResizeDoneArg } from "@fullcalendar/interaction";
 import { closeSidebar } from "../../sidebar-stuff";
 import { 
   normalizeStartHour, 
@@ -277,7 +278,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     await enterEditMode(blockUuid);
   }, [enterEditMode]);
 
-  const handleEventDrop = useCallback(async (dropInfo: any) => {
+  const handleEventDrop = useCallback(async (dropInfo: EventDropArg) => {
     const blockUuid = dropInfo.event.extendedProps.blockUuid;
     if (dropInfo.event.extendedProps?.source === "external") {
       dropInfo.revert();
@@ -328,7 +329,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     }
   }, [refreshEvents]);
 
-  const handleEventResize = useCallback(async (resizeInfo: any) => {
+  const handleEventResize = useCallback(async (resizeInfo: EventResizeDoneArg) => {
     const blockUuid = resizeInfo.event.extendedProps.blockUuid;
     if (resizeInfo.event.extendedProps?.source === "external") {
       resizeInfo.revert();
@@ -610,9 +611,9 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           eventResize={handleEventResize}
           eventContent={renderEventContent}
           events={events}
-          viewDidMount={(view: any) => {
-            setCurrentView(view.view.type as CalendarViewType);
-            if (view.view.type === "timeGridMulti") {
+          viewDidMount={(arg: ViewMountArg) => {
+            setCurrentView(arg.view.type as CalendarViewType);
+            if (arg.view.type === "timeGridMulti") {
               goToTodayMinusOne();
             }
           }}
