@@ -58,6 +58,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   const clickTimeoutRef = useRef<number | null>(null);
   const lastClickedEventRef = useRef<string | null>(null);
   const dragDropTriggeredRef = useRef<boolean>(false);
+  const dragOffsetRef = useRef<number>(0);
   const [startOfDayHour, setStartOfDayHour] = useState<number>(() => normalizeStartHour((logseq as any)?.settings?.startOfDayHour));
   const [firstDayOfWeek, setFirstDayOfWeek] = useState<number>(() => normalizeFirstDay((logseq as any)?.settings?.firstDayOfWeek));
   const [multiDaySpan, setMultiDaySpan] = useState<number>(() => normalizeMultiDaySpan((logseq as any)?.settings?.multiDayViewSpan));
@@ -342,30 +343,13 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     await moveEvent(blockUuid, newDate, allDay, dropInfo.event.end);
   }, [moveEvent]);
 
-  const handleDragStop = useCallback((info: EventDragStopArg) => {
-    setIsDragging(false);
-    
-    // If eventDrop fired, we're good
-    if (dragDropTriggeredRef.current) return;
-
-    // Fallback: try to infer drop target from pointer location
-    console.log("[Calendar] eventDrop did not fire, attempting fallback inference...");
-    
-    const { jsEvent, event } = info;
-    const x = jsEvent.clientX;
-    const y = jsEvent.clientY;
-
-    // Hide the dragged element momentarily to see what's under it? 
-    // Actually elementsFromPoint should pierce through if we check all elements.
+  const inferDateFromPoint = useCallback((x: number, y: number): { date: Date, allDay: boolean } | null => {
     const elements = document.elementsFromPoint(x, y);
     
     // Look for timegrid slot
     const timeSlot = elements.find(el => el.getAttribute('data-time'));
     // Look for daygrid day
     const daySlot = elements.find(el => el.getAttribute('data-date'));
-
-    let newDate: Date | null = null;
-    let allDay = false;
 
     if (timeSlot) {
       const timeStr = timeSlot.getAttribute('data-time');
@@ -374,36 +358,74 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       const dateStr = col?.getAttribute('data-date');
       
       if (dateStr && timeStr) {
-        newDate = new Date(`${dateStr}T${timeStr}`);
-        allDay = false;
-        console.log(`[Calendar] Inferred drop target (TimeGrid): ${dateStr} ${timeStr}`);
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const [hours, minutes, seconds] = timeStr.split(':').map(Number);
+        return { 
+          date: new Date(year, month - 1, day, hours, minutes, seconds), 
+          allDay: false 
+        };
       }
     } else if (daySlot) {
       const dateStr = daySlot.getAttribute('data-date');
       if (dateStr) {
-        // In day view, it's all day
-        newDate = new Date(dateStr + "T00:00:00");
-        allDay = true;
-        console.log(`[Calendar] Inferred drop target (DayGrid): ${dateStr}`);
+        const [year, month, day] = dateStr.split('-').map(Number);
+        return { 
+          date: new Date(year, month - 1, day), 
+          allDay: true 
+        };
       }
     }
+    return null;
+  }, []);
 
-    if (newDate) {
-      const blockUuid = event.extendedProps.blockUuid;
-      if (blockUuid) {
-        // Calculate new end time based on duration
-        let newEnd: Date | null = null;
-        if (!allDay && event.start && event.end) {
-          const duration = event.end.getTime() - event.start.getTime();
-          newEnd = new Date(newDate.getTime() + duration);
-        }
+  const handleDragStop = useCallback((info: EventDragStopArg) => {
+    setIsDragging(false);
+    
+    // Capture necessary data synchronously
+    const { jsEvent, event } = info;
+    const x = jsEvent.clientX;
+    const y = jsEvent.clientY;
+    const blockUuid = event.extendedProps.blockUuid;
+    const eventStart = event.start;
+    const eventEnd = event.end;
+
+    // Wait a tick to see if eventDrop fires first
+    setTimeout(() => {
+      // If eventDrop fired, we're good
+      if (dragDropTriggeredRef.current) return;
+
+      // Fallback: try to infer drop target from pointer location
+      console.log("[Calendar] eventDrop did not fire, attempting fallback inference...");
+      
+      const inferred = inferDateFromPoint(x, y);
+
+      if (inferred) {
+        let newDate = inferred.date;
+        const allDay = inferred.allDay;
         
-        moveEvent(blockUuid, newDate, allDay, newEnd);
+        console.log(`[Calendar] Inferred drop target: ${newDate.toISOString()} (allDay: ${allDay})`);
+
+        // Apply drag offset if applicable (timegrid -> timegrid)
+        if (!allDay && !event.allDay && dragOffsetRef.current) {
+          newDate = new Date(newDate.getTime() - dragOffsetRef.current);
+          console.log(`[Calendar] Applied drag offset ${dragOffsetRef.current}ms -> ${newDate.toISOString()}`);
+        }
+
+        if (blockUuid) {
+          // Calculate new end time based on duration
+          let newEnd: Date | null = null;
+          if (!allDay && eventStart && eventEnd) {
+            const duration = eventEnd.getTime() - eventStart.getTime();
+            newEnd = new Date(newDate.getTime() + duration);
+          }
+          
+          moveEvent(blockUuid, newDate, allDay, newEnd);
+        }
+      } else {
+        console.warn("[Calendar] Could not infer drop target from pointer");
       }
-    } else {
-      console.warn("[Calendar] Could not infer drop target from pointer");
-    }
-  }, [setIsDragging, moveEvent]);
+    }, 50);
+  }, [setIsDragging, moveEvent, inferDateFromPoint]);
 
   const handleEventResize = useCallback(async (resizeInfo: EventResizeDoneArg) => {
     const blockUuid = resizeInfo.event.extendedProps.blockUuid;
@@ -667,9 +689,18 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           dayMaxEvents={true}
           weekends={true}
           editable={true}
-          eventDragStart={() => {
+          eventDragStart={(info) => {
             setIsDragging(true);
             dragDropTriggeredRef.current = false;
+            
+            // Calculate drag offset
+            const { jsEvent, event } = info;
+            const inferred = inferDateFromPoint(jsEvent.clientX, jsEvent.clientY);
+            if (inferred && !inferred.allDay && event.start) {
+              dragOffsetRef.current = inferred.date.getTime() - event.start.getTime();
+            } else {
+              dragOffsetRef.current = 0;
+            }
           }}
           eventDragStop={handleDragStop}
           eventResizeStart={() => setIsDragging(true)}
