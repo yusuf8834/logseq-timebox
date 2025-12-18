@@ -313,7 +313,6 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       updatedContent = updateDurationTokenInContent(updatedContent, !allDay && durMins ? durMins : null);
 
       await logseq.Editor.updateBlock(blockUuid, updatedContent);
-      console.log(`[Calendar] Event moved: ${blockUuid} to ${newDate.toISOString()}`);
       logseq.UI.showMsg("Event moved successfully", "success");
       
       // Reload events to reflect changes
@@ -395,7 +394,6 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       if (dragDropTriggeredRef.current) return;
 
       // Fallback: try to infer drop target from pointer location
-      console.log("[Calendar] eventDrop did not fire, attempting fallback inference...");
       
       const inferred = inferDateFromPoint(x, y);
 
@@ -403,12 +401,9 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
         let newDate = inferred.date;
         const allDay = inferred.allDay;
         
-        console.log(`[Calendar] Inferred drop target: ${newDate.toISOString()} (allDay: ${allDay})`);
-
         // Apply drag offset if applicable (timegrid -> timegrid)
         if (!allDay && !event.allDay && dragOffsetRef.current) {
           newDate = new Date(newDate.getTime() - dragOffsetRef.current);
-          console.log(`[Calendar] Applied drag offset ${dragOffsetRef.current}ms -> ${newDate.toISOString()}`);
         }
 
         if (blockUuid) {
@@ -421,8 +416,6 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           
           moveEvent(blockUuid, newDate, allDay, newEnd);
         }
-      } else {
-        console.warn("[Calendar] Could not infer drop target from pointer");
       }
     }, 50);
   }, [setIsDragging, moveEvent, inferDateFromPoint]);
