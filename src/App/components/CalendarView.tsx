@@ -4,7 +4,7 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import type { DateSelectArg, EventClickArg, CalendarApi, EventContentArg, EventDropArg, ViewMountArg } from "@fullcalendar/core";
-import type { EventResizeDoneArg } from "@fullcalendar/interaction";
+import type { EventResizeDoneArg, EventDragStopArg } from "@fullcalendar/interaction";
 import { closeSidebar } from "../../sidebar-stuff";
 import { 
   normalizeStartHour, 
@@ -40,7 +40,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   const { isFullscreen, exitFullscreen, toggleFullscreen } = useFullscreen();
   
   // Use the scheduled events hook
-  const { events, externalVisible, setExternalVisible, refreshEvents } = useScheduledEvents();
+  const { events, externalVisible, setExternalVisible, refreshEvents, setIsDragging, updateEventOptimistically } = useScheduledEvents();
   
   // Use the inline edit hook
   const {
@@ -57,6 +57,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   // Click tracking for single vs double click detection
   const clickTimeoutRef = useRef<number | null>(null);
   const lastClickedEventRef = useRef<string | null>(null);
+  const dragDropTriggeredRef = useRef<boolean>(false);
   const [startOfDayHour, setStartOfDayHour] = useState<number>(() => normalizeStartHour((logseq as any)?.settings?.startOfDayHour));
   const [firstDayOfWeek, setFirstDayOfWeek] = useState<number>(() => normalizeFirstDay((logseq as any)?.settings?.firstDayOfWeek));
   const [multiDaySpan, setMultiDaySpan] = useState<number>(() => normalizeMultiDaySpan((logseq as any)?.settings?.multiDayViewSpan));
@@ -278,31 +279,24 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     await enterEditMode(blockUuid);
   }, [enterEditMode]);
 
-  const handleEventDrop = useCallback(async (dropInfo: EventDropArg) => {
-    const blockUuid = dropInfo.event.extendedProps.blockUuid;
-    if (dropInfo.event.extendedProps?.source === "external") {
-      dropInfo.revert();
-      return;
-    }
-    const newDate = dropInfo.event.start;
-    const allDay = dropInfo.event.allDay;
-
-    if (!blockUuid || !newDate) {
-      dropInfo.revert();
-      return;
-    }
+  const moveEvent = useCallback(async (blockUuid: string, newDate: Date, allDay: boolean, eventEnd: Date | null) => {
+    // Optimistic update
+    updateEventOptimistically({
+      id: blockUuid,
+      start: newDate.toISOString(),
+      end: eventEnd?.toISOString(),
+      allDay: allDay
+    });
 
     try {
       const block = await logseq.Editor.getBlock(blockUuid);
       if (!block) {
         logseq.UI.showMsg("Block not found", "error");
-        dropInfo.revert();
         return;
       }
 
       // Preserve duration if present; otherwise compute from event end if available
       const existingDur = parseDurationToken(block.content || "");
-      const eventEnd: Date | null = dropInfo.event.end || null;
       const computedDur = !allDay && eventEnd ? Math.max(1, Math.round((eventEnd.getTime() - newDate.getTime()) / 60000)) : null;
       const durMins = existingDur ?? computedDur;
 
@@ -318,6 +312,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       updatedContent = updateDurationTokenInContent(updatedContent, !allDay && durMins ? durMins : null);
 
       await logseq.Editor.updateBlock(blockUuid, updatedContent);
+      console.log(`[Calendar] Event moved: ${blockUuid} to ${newDate.toISOString()}`);
       logseq.UI.showMsg("Event moved successfully", "success");
       
       // Reload events to reflect changes
@@ -325,9 +320,90 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     } catch (error) {
       console.error("Error moving event:", error);
       logseq.UI.showMsg(`Error moving event: ${error}`, "error");
-      dropInfo.revert();
+      refreshEvents();
     }
-  }, [refreshEvents]);
+  }, [refreshEvents, updateEventOptimistically]);
+
+  const handleEventDrop = useCallback(async (dropInfo: EventDropArg) => {
+    dragDropTriggeredRef.current = true;
+    const blockUuid = dropInfo.event.extendedProps.blockUuid;
+    if (dropInfo.event.extendedProps?.source === "external") {
+      dropInfo.revert();
+      return;
+    }
+    const newDate = dropInfo.event.start;
+    const allDay = dropInfo.event.allDay;
+
+    if (!blockUuid || !newDate) {
+      dropInfo.revert();
+      return;
+    }
+
+    await moveEvent(blockUuid, newDate, allDay, dropInfo.event.end);
+  }, [moveEvent]);
+
+  const handleDragStop = useCallback((info: EventDragStopArg) => {
+    setIsDragging(false);
+    
+    // If eventDrop fired, we're good
+    if (dragDropTriggeredRef.current) return;
+
+    // Fallback: try to infer drop target from pointer location
+    console.log("[Calendar] eventDrop did not fire, attempting fallback inference...");
+    
+    const { jsEvent, event } = info;
+    const x = jsEvent.clientX;
+    const y = jsEvent.clientY;
+
+    // Hide the dragged element momentarily to see what's under it? 
+    // Actually elementsFromPoint should pierce through if we check all elements.
+    const elements = document.elementsFromPoint(x, y);
+    
+    // Look for timegrid slot
+    const timeSlot = elements.find(el => el.getAttribute('data-time'));
+    // Look for daygrid day
+    const daySlot = elements.find(el => el.getAttribute('data-date'));
+
+    let newDate: Date | null = null;
+    let allDay = false;
+
+    if (timeSlot) {
+      const timeStr = timeSlot.getAttribute('data-time');
+      // Find the column to get the date
+      const col = elements.find(el => el.classList.contains('fc-timegrid-col') && el.getAttribute('data-date'));
+      const dateStr = col?.getAttribute('data-date');
+      
+      if (dateStr && timeStr) {
+        newDate = new Date(`${dateStr}T${timeStr}`);
+        allDay = false;
+        console.log(`[Calendar] Inferred drop target (TimeGrid): ${dateStr} ${timeStr}`);
+      }
+    } else if (daySlot) {
+      const dateStr = daySlot.getAttribute('data-date');
+      if (dateStr) {
+        // In day view, it's all day
+        newDate = new Date(dateStr + "T00:00:00");
+        allDay = true;
+        console.log(`[Calendar] Inferred drop target (DayGrid): ${dateStr}`);
+      }
+    }
+
+    if (newDate) {
+      const blockUuid = event.extendedProps.blockUuid;
+      if (blockUuid) {
+        // Calculate new end time based on duration
+        let newEnd: Date | null = null;
+        if (!allDay && event.start && event.end) {
+          const duration = event.end.getTime() - event.start.getTime();
+          newEnd = new Date(newDate.getTime() + duration);
+        }
+        
+        moveEvent(blockUuid, newDate, allDay, newEnd);
+      }
+    } else {
+      console.warn("[Calendar] Could not infer drop target from pointer");
+    }
+  }, [setIsDragging, moveEvent]);
 
   const handleEventResize = useCallback(async (resizeInfo: EventResizeDoneArg) => {
     const blockUuid = resizeInfo.event.extendedProps.blockUuid;
@@ -343,6 +419,14 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       resizeInfo.revert();
       return;
     }
+
+    // Optimistic update
+    updateEventOptimistically({
+      id: resizeInfo.event.id,
+      start: newStart.toISOString(),
+      end: newEnd?.toISOString(),
+      allDay: allDay
+    });
 
     try {
       const block = await logseq.Editor.getBlock(blockUuid);
@@ -376,8 +460,9 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       console.error("Error resizing event:", error);
       logseq.UI.showMsg(`Error resizing event: ${error}`, "error");
       resizeInfo.revert();
+      refreshEvents();
     }
-  }, [refreshEvents]);
+  }, [refreshEvents, updateEventOptimistically]);
 
   const handleClearSchedule = useCallback(async (blockUuid: string, e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent event click from firing
@@ -582,6 +667,13 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           dayMaxEvents={true}
           weekends={true}
           editable={true}
+          eventDragStart={() => {
+            setIsDragging(true);
+            dragDropTriggeredRef.current = false;
+          }}
+          eventDragStop={handleDragStop}
+          eventResizeStart={() => setIsDragging(true)}
+          eventResizeStop={() => setIsDragging(false)}
           views={{
             timeGridMulti: {
               type: "timeGrid",

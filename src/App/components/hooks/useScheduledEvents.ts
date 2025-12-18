@@ -10,6 +10,13 @@ interface ScheduledInfo {
   durationMins?: number;
 }
 
+interface PendingUpdate {
+  start: string;
+  end?: string;
+  allDay: boolean;
+  timestamp: number;
+}
+
 const parseScheduledTime = (content: string): ScheduledInfo | null => {
   // Parse SCHEDULED: <YYYY-MM-DD ddd HH:mm> or SCHEDULED: <YYYY-MM-DD ddd>
   const scheduledMatch = content.match(/SCHEDULED:\s*<([^>]+)>/);
@@ -39,7 +46,9 @@ interface UseScheduledEventsReturn {
   events: EventInput[];
   externalVisible: boolean;
   setExternalVisible: (visible: boolean | ((prev: boolean) => boolean)) => void;
-  refreshEvents: () => void;
+  refreshEvents: (forceExternalRefresh?: boolean) => void;
+  setIsDragging: (dragging: boolean) => void;
+  updateEventOptimistically: (event: EventInput) => void;
 }
 
 export function useScheduledEvents(): UseScheduledEventsReturn {
@@ -52,8 +61,50 @@ export function useScheduledEvents(): UseScheduledEventsReturn {
   const debounceTimerRef = useRef<number | null>(null);
   // Cache for external ICS events (to avoid refetching on local changes)
   const externalCacheRef = useRef<{ urls: string; events: EventInput[] } | null>(null);
+  
+  // Track pending updates to prevent stale DB data from overwriting optimistic UI
+  const pendingUpdatesRef = useRef<Map<string, PendingUpdate>>(new Map());
+  // Track dragging state to pause refreshes
+  const isDraggingRef = useRef(false);
+
+  const setIsDragging = useCallback((dragging: boolean) => {
+    if (dragging) {
+      isDraggingRef.current = true;
+    } else {
+      // Delay setting false to allow handleEventDrop to fire and set pending update
+      // This prevents a race condition where a refresh happens between drag stop and drop handler
+      setTimeout(() => {
+        isDraggingRef.current = false;
+      }, 200);
+    }
+  }, []);
+
+  const updateEventOptimistically = useCallback((event: EventInput) => {
+    if (!event.id) return;
+    
+    // Update pending updates
+    pendingUpdatesRef.current.set(event.id, {
+      start: event.start as string,
+      end: event.end as string,
+      allDay: event.allDay as boolean,
+      timestamp: Date.now()
+    });
+
+    // Update local state immediately
+    setEvents(prev => {
+      return prev.map(e => {
+        if (e.id === event.id) {
+          return { ...e, ...event };
+        }
+        return e;
+      });
+    });
+  }, []);
 
   const loadScheduledEvents = useCallback(async (forceExternalRefresh = false) => {
+    // Skip loading if dragging
+    if (isDraggingRef.current) return;
+
     try {
       // Query blocks with scheduled property
       const scheduledBlocks = await logseq.DB.datascriptQuery(`
@@ -132,6 +183,35 @@ export function useScheduledEvents(): UseScheduledEventsReturn {
             if (durMins && durMins > 0) {
               const end = new Date(scheduledInfo.date.getTime() + durMins * 60000);
               event.end = end.toISOString();
+            }
+          }
+
+          // Check for pending updates
+          const pending = pendingUpdatesRef.current.get(block.uuid);
+          if (pending) {
+            // Check if DB matches pending (DB caught up)
+            // We compare start time and allDay status
+            // Note: event.start is ISO string, pending.start is ISO string
+            const dbStart = event.start;
+            const pendingStart = pending.start;
+            
+            // Simple comparison. Might need more robust date comparison if formats differ slightly,
+            // but both should be ISO strings here.
+            const isSynced = dbStart === pendingStart && event.allDay === pending.allDay;
+            
+            if (isSynced) {
+              pendingUpdatesRef.current.delete(block.uuid);
+            } else {
+              // Not synced yet. Check if pending update is stale (e.g. > 15s)
+              if (Date.now() - pending.timestamp < 15000) {
+                // Keep optimistic state
+                event.start = pending.start;
+                event.end = pending.end;
+                event.allDay = pending.allDay;
+              } else {
+                // Pending update timed out
+                pendingUpdatesRef.current.delete(block.uuid);
+              }
             }
           }
 
@@ -220,6 +300,7 @@ export function useScheduledEvents(): UseScheduledEventsReturn {
     externalVisible,
     setExternalVisible,
     refreshEvents: () => refreshEvents(false),
+    setIsDragging,
+    updateEventOptimistically
   };
 }
-
