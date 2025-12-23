@@ -1,23 +1,30 @@
 # Logseq Timebox
 
+Important Reminders: 
+
+1. This plugin is still in development and not yet released on the Logseq Marketplace.
+2. This plugin is only tested on MD version. DB version is planned to be supported in the future.
+
 A calendar sidebar plugin for Logseq that lets you visualize and manage your scheduled tasks in a timebox-style calendar view.
 
 ![Timebox Overview](screenshots/overview.png)
 
 ## Features
 
-- 📅 **Day/Week/Month Views** - Switch between different calendar views to plan your time
+- 📅 **Day/Week/Month/Multi-day Views** - Switch between different calendar views to plan your time (multi-day span is configurable)
 - 🖱️ **Drag & Drop** - Move tasks by dragging them to a new time slot
 - ⏱️ **Resize Events** - Adjust task duration by dragging the edges
 - 🔄 **Recurring Tasks** - Full support for Logseq's repeater patterns (`++1w`, `.+1d`, etc.)
 - ➕ **Quick Create** - Click or drag on the calendar to create new scheduled tasks
+- 🖱️ **Inline Edit** - Edit task titles directly from the calendar
 - 🗑️ **Clear Schedule** - Remove scheduling from tasks with one click
+- 📅 **External Calendars (ICS)** - Overlay read-only events from external feeds
+- 🔄 **Fullscreen & Refresh** - Expand the calendar or manually refresh events
 - ↔️ **Resizable Sidebar** - Drag to adjust the sidebar width
 - 🔀 **Left/Right Position** - Toggle sidebar position
 
-## Coming Soon
 
-- 🌙 **Dark Mode** - Seamless integration with Logseq's theme
+- 🌙 **Theme-aware Styling** - Works with both light and dark themes
 
 ## Screenshots
 
@@ -27,7 +34,7 @@ A calendar sidebar plugin for Logseq that lets you visualize and manage your sch
 
 ## Installation
 
-### From Logseq Marketplace (Recommended)
+### From Logseq Marketplace (Recommended but not Released Yet :)
 1. Open Logseq
 2. Go to `...` → `Plugins` → `Marketplace`
 3. Search for "Timebox"
@@ -42,11 +49,28 @@ A calendar sidebar plugin for Logseq that lets you visualize and manage your sch
 ## Usage
 
 1. Click the calendar icon in the toolbar to open the sidebar
-2. **Create tasks**: Click on a time slot or drag to select a time range
-3. **Move tasks**: Drag and drop events to reschedule
-4. **Resize tasks**: Drag the bottom edge of an event to change duration
-5. **Clear schedule**: Hover over an event and click the X button
-6. **Navigate**: Use the arrow buttons or "Today" to navigate dates
+2. Use the settings (gear) button to configure view and behavior preferences
+3. **Switch views**: Use Day / Multi-day / Week / Month buttons (multi-day shows as `3d`, `4d`, etc.)
+4. **Create tasks**: Click on a time slot or drag to select a time range
+5. **Move tasks**: Drag and drop events to reschedule
+6. **Resize tasks**: Drag the bottom edge of an event to change duration
+7. **Edit tasks**: Click the pencil icon on an event (or use configured click actions)
+8. **Clear schedule**: Hover over an event and click the X button
+9. **External calendars**: Toggle "External on/off" and use Refresh when needed
+10. **Fullscreen**: Use the expand button to focus on the calendar
+11. **Navigate**: Use the arrow buttons or "Today" to navigate dates
+
+## Settings
+
+Open settings via the gear icon in the toolbar or `...` → `Plugins` → `Settings`.
+
+- **Start of day hour (0-23)**: Earliest hour shown in day/week/multi-day views
+- **First day of week (0-6)**: 0 = Sunday, 1 = Monday, ... 6 = Saturday
+- **Multi-day view length (days)**: Number of days shown in the multi-day view (min 2, max 14)
+- **Single click action**: `none`, `edit`, or `goto`
+- **Double click action**: `none`, `edit`, or `goto`
+- **External calendar ICS URLs**: One URL per line (read-only overlays)
+- **Show external calendars by default**: Initial visibility for ICS events
 
 ## Task Format
 
