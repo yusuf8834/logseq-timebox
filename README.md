@@ -6,8 +6,7 @@ A calendar sidebar plugin for Logseq that lets you visualize and manage your sch
 > Important Reminders:
 >
 > 1. This plugin is still in development and not yet released on the Logseq Marketplace.
-> 2. This plugin is only tested on MD version. DB version is planned to be supported in the future.DB version is planned to be supported in the future.
-
+> 2. This plugin is only tested on MD version. DB version is planned to be supported in the future.
 
 ## Features
 
