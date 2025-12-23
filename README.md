@@ -1,13 +1,13 @@
 # Logseq Timebox
 
-Important Reminders: 
-
-1. This plugin is still in development and not yet released on the Logseq Marketplace.
-2. This plugin is only tested on MD version. DB version is planned to be supported in the future.
-
 A calendar sidebar plugin for Logseq that lets you visualize and manage your scheduled tasks in a timebox-style calendar view.
 
-![Timebox Overview](screenshots/overview.png)
+
+> Important Reminders:
+>
+> 1. This plugin is still in development and not yet released on the Logseq Marketplace.
+> 2. This plugin is only tested on MD version. DB version is planned to be supported in the future.DB version is planned to be supported in the future.
+
 
 ## Features
 
@@ -23,13 +23,24 @@ A calendar sidebar plugin for Logseq that lets you visualize and manage your sch
 - ↔️ **Resizable Sidebar** - Drag to adjust the sidebar width
 - 🔀 **Left/Right Position** - Toggle sidebar position
 
+## Coming Soon
 
-- 🌙 **Theme-aware Styling** - Works with both light and dark themes
+- 🌙 **Theme integration** - Seamless alignment with Logseq themes
+- 🗄️ **DB Version Support** - Compatibility with Logseq database versions
 
 ## Screenshots
 
 ### General
 ![Day View](screenshots/general.png)
+
+### Demo
+![Timebox Demo 1](screenshots/Logseq_41hZXzuY0C.gif)
+
+### More
+![Timebox Screenshot 1](screenshots/Logseq_0FlJuWqvXH.png)
+![Timebox Screenshot 2](screenshots/Logseq_JHWzE9ZezY.png)
+![Timebox Screenshot 3](screenshots/Logseq_mRFV5tLbzA.png)
+![Timebox Screenshot 4](screenshots/Logseq_vs6QZ9xIcI.png)
 
 
 ## Installation
@@ -41,7 +52,7 @@ A calendar sidebar plugin for Logseq that lets you visualize and manage your sch
 4. Click `Install`
 
 ### Manual Installation
-1. Download the latest release from [Releases](https://github.com/yourusername/logseq-timebox/releases)
+1. Download the latest release from [Releases](https://github.com/yusuf8834/logseq-timebox/releases)
 2. Unzip the file
 3. In Logseq, go to `...` → `Plugins` → `Load unpacked plugin`
 4. Select the unzipped folder
