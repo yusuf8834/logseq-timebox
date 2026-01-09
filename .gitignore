@@ -5,3 +5,4 @@ bun.lock
 examples/
 notes/
 .cursor/
+logseq-marketplace/
