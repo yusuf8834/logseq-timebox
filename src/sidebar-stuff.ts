@@ -126,6 +126,8 @@ export const closeSidebar = () => {
 
 // Toolbar
 const initializeToolbar = () => {
+  const toolbarKey = "logseq-timebox";
+  const toolbarLabel = "Logseq Timebox";
   const iconName = `${applicationId}--${providedUiIdBase}-toolbar-icon`;
 
   logseq.provideStyle(`
@@ -150,14 +152,14 @@ const initializeToolbar = () => {
   });
 
   logseq.provideStyle(`
-    #injected-ui-item-${iconName}-${applicationId} {
+    #injected-ui-item-${toolbarKey}-${applicationId} {
       display: flex;
       align-items: center;
       font-weight: 500;
       position: relative;
     }
 
-    #injected-ui-item-${iconName}-${applicationId}-overlay {
+    #injected-ui-item-${toolbarKey}-${applicationId}-overlay {
       display: flex;
       align-items: center;
       font-weight: 500;
@@ -166,9 +168,9 @@ const initializeToolbar = () => {
   `);
 
   logseq.App.registerUIItem("toolbar", {
-    key: iconName,
+    key: toolbarKey,
     template: `
-      <a class="button relative" data-on-click="toggle" title="Logseq Timebox" aria-label="Logseq Timebox" data-rect-tooltip="Logseq Timebox">
+      <a class="button relative" data-on-click="toggle" title="${toolbarLabel}" aria-label="${toolbarLabel}" data-rect-tooltip="${toolbarLabel}">
         <span class="${iconName}"><i class="ti ti-list-details"></i></span>
       </a>  
     `,
