@@ -5,27 +5,26 @@ A calendar sidebar plugin for Logseq that lets you visualize and manage your sch
 
 > Important Reminders:
 >
-> 1. This plugin is still in development and not yet released on the Logseq Marketplace.
-> 2. This plugin is only tested on MD version. DB version is planned to be supported in the future.
+> This plugin is only tested on MD version. DB version is planned to be supported in the future.
 
 ## Features
 
-- 📅 **Day/Week/Month/Multi-day Views** - Switch between different calendar views to plan your time (multi-day span is configurable)
-- 🖱️ **Drag & Drop** - Move tasks by dragging them to a new time slot
-- ⏱️ **Resize Events** - Adjust task duration by dragging the edges
-- 🔄 **Recurring Tasks** - Full support for Logseq's repeater patterns (`++1w`, `.+1d`, etc.)
-- ➕ **Quick Create** - Click or drag on the calendar to create new scheduled tasks
-- 🖱️ **Inline Edit** - Edit task titles directly from the calendar
-- 🗑️ **Clear Schedule** - Remove scheduling from tasks with one click
-- 📅 **External Calendars (ICS)** - Overlay read-only events from external feeds
-- 🔄 **Fullscreen & Refresh** - Expand the calendar or manually refresh events
-- ↔️ **Resizable Sidebar** - Drag to adjust the sidebar width
-- 🔀 **Left/Right Position** - Toggle sidebar position
+- **Day/Week/Month/Multi-day Views** - Switch between different calendar views to plan your time (multi-day span is configurable)
+- **Drag & Drop** - Move tasks by dragging them to a new time slot
+- **Resize Events** - Adjust task duration by dragging the edges
+- **Recurring Tasks** - Full support for Logseq's repeater patterns (`++1w`, `.+1d`, etc.)
+- **Quick Create** - Click or drag on the calendar to create new scheduled tasks
+- **Inline Edit** - Edit task titles directly from the calendar
+- **Clear Schedule** - Remove scheduling from tasks with one click
+- **External Calendars (ICS)** - Overlay read-only events from external feeds
+- **Fullscreen & Refresh** - Expand the calendar or manually refresh events
+- **Resizable Sidebar** - Drag to adjust the sidebar width
+- **Left/Right Position** - Toggle sidebar position
 
-## Coming Soon
+## Later
 
-- 🌙 **Theme integration** - Seamless alignment with Logseq themes
-- 🗄️ **DB Version Support** - Compatibility with Logseq database versions
+- **Theme integration** - Seamless alignment with Logseq themes
+- **DB Version Support** - Compatibility with Logseq database versions
 
 ## Screenshots
 
@@ -44,7 +43,7 @@ A calendar sidebar plugin for Logseq that lets you visualize and manage your sch
 
 ## Installation
 
-### From Logseq Marketplace (Recommended but not Released Yet :)
+### From Logseq Marketplace (Recommended)
 1. Open Logseq
 2. Go to `...` → `Plugins` → `Marketplace`
 3. Search for "Timebox"
