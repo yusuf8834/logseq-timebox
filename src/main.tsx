@@ -8,7 +8,9 @@ import { initializeSidebarStuff } from "./sidebar-stuff.ts";
 // Custom event name for database changes - used to notify React components
 export const DB_CHANGED_EVENT = "logseq-timebox-db-changed";
 
-const main = async () => {
+const main = async (baseInfo?: { effect?: boolean }) => {
+  console.log("effect baseInfo:", baseInfo?.effect);
+  console.log("effect getter:", (logseq as { effect?: boolean }).effect);
   logseq.useSettingsSchema([
     {
       key: "startOfDayHour",

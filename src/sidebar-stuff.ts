@@ -11,7 +11,7 @@ const sidebarPositionStorageKey = `${applicationId}-sidebar-position`;
 const defaultWidth = 400;
 const MIN_WIDTH = 300;
 
-// Removed spacer logic; overlay now floats below header without shifting layout.
+// Layout shifting uses host-injected styles so it can work in sandboxed mode.
 
 // Local state
 let isUiShowing = false;
@@ -34,68 +34,79 @@ const initSidebarPosition = () => {
 
 // Element ID helper removed (no injected spacer elements anymore)
 
-const getParentViewportDocument = () => {
-  try {
-    const parentWindow = window.parent;
-    if (parentWindow && parentWindow !== window) {
-      return parentWindow.document;
-    }
-  } catch {
-    return null;
-  }
+// Layout adjustments use injected styles instead of spacer elements.
+let hasInjectedLayoutBaseStyle = false;
+let lastLayoutVars = "";
 
-  return document;
+const injectLayoutBaseStyle = () => {
+  if (hasInjectedLayoutBaseStyle) return;
+  hasInjectedLayoutBaseStyle = true;
+
+  logseq.provideStyle(`
+    :root {
+      --logseq-timebox-left: 0px;
+      --logseq-timebox-right: 0px;
+    }
+
+    #main-content-container {
+      margin-left: var(--logseq-timebox-left) !important;
+      margin-right: var(--logseq-timebox-right) !important;
+      transition: margin 0.15s ease;
+    }
+
+    :root:not(:has(#main-content-container)) .cp__sidebar-main-content {
+      margin-left: var(--logseq-timebox-left) !important;
+      margin-right: var(--logseq-timebox-right) !important;
+      transition: margin 0.15s ease;
+    }
+
+    :root:not(:has(#main-content-container)):not(:has(.cp__sidebar-main-content)) .cp__sidebar-main-layout {
+      margin-left: var(--logseq-timebox-left) !important;
+      margin-right: var(--logseq-timebox-right) !important;
+      transition: margin 0.15s ease;
+    }
+  `);
 };
 
-// Spacer logic removed to avoid affecting header/window controls and layout gaps
+const updateHostLayoutVars = (
+  width: number,
+  position: "left" | "right",
+  visible: boolean,
+) => {
+  const appliedWidth = visible ? width : 0;
+  const leftMargin = position === "left" ? appliedWidth : 0;
+  const rightMargin = position === "right" ? appliedWidth : 0;
+  const nextVars = `:root{--logseq-timebox-left:${leftMargin}px;--logseq-timebox-right:${rightMargin}px;}`;
+
+  if (nextVars === lastLayoutVars) return;
+  lastLayoutVars = nextVars;
+
+  try {
+    logseq.provideStyle(nextVars);
+  } catch {}
+};
 
 // Adjust main content area to make room for sidebar
 const adjustMainContent = (width: number, position: "left" | "right") => {
-  const doc = getParentViewportDocument();
-  if (!doc) return;
-  
-  // Target the main content container
-  const mainContent = doc.querySelector('#main-content-container') as HTMLElement | null;
-  if (mainContent) {
-    if (position === "left") {
-      mainContent.style.marginLeft = `${width}px`;
-      mainContent.style.marginRight = '';
-    } else {
-      mainContent.style.marginRight = `${width}px`;
-      mainContent.style.marginLeft = '';
-    }
-    mainContent.style.transition = 'margin 0.15s ease';
-  }
+  updateHostLayoutVars(width, position, true);
 };
 
 const resetMainContent = () => {
-  const doc = getParentViewportDocument();
-  if (!doc) return;
-  
-  const mainContent = doc.querySelector('#main-content-container') as HTMLElement | null;
-  if (mainContent) {
-    mainContent.style.marginLeft = '';
-    mainContent.style.marginRight = '';
-    mainContent.style.transition = '';
-  }
+  updateHostLayoutVars(0, sidebarPosition, false);
 };
 
 // Main UI helpers
 const setMainUIStyle = (width: number, position: "left" | "right") => {
   const px = `${width}px`;
-
-  // Detect header height so overlay starts below it (keeps top buttons clickable)
-  const doc = getParentViewportDocument();
-  const headerEl = doc?.querySelector('.cp__header') as HTMLElement | null;
-  const headerHeight = headerEl?.offsetHeight ?? 40;
+  const headerHeight = "var(--ls-top-bar-height, 40px)";
 
   logseq.setMainUIInlineStyle({
     position: "absolute",
     zIndex: 11,
     width: px,
-    top: `${headerHeight}px`,
+    top: headerHeight,
     left: position === "left" ? "0" : `calc(100vw - ${px})`,
-    height: `calc(100vh - ${headerHeight}px)`,
+    height: `calc(100vh - ${headerHeight})`,
   });
 };
 
@@ -180,7 +191,7 @@ const initializeToolbar = () => {
 };
 
 // Persistence
-const getLocalStorage = () => window.parent?.window?.localStorage;
+const getLocalStorage = () => window.localStorage;
 
 const readStoredWidth = () => {
   try {
@@ -248,6 +259,8 @@ export const initializeSidebarStuff = () => {
   initSidebarPosition();
   injectGlobalStyleOverrides();
   cleanupLegacyArtifacts();
+  injectLayoutBaseStyle();
+  updateHostLayoutVars(0, sidebarPosition, false);
   initializeToolbar();
 };
 
@@ -262,13 +275,6 @@ const cleanupLegacyArtifacts = () => {
   try {
     // Remove any previously injected spacer UI from older versions
     logseq.provideUI({ key: legacySpacerKey, path: "#root", template: "" });
-  } catch {}
-
-  try {
-    // Clear any header padding-right left by older versions
-    const doc = getParentViewportDocument();
-    const headerEl = doc?.querySelector('.cp__header') as HTMLElement | null;
-    if (headerEl) headerEl.style.paddingRight = "";
   } catch {}
 };
 
