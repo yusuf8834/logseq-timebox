@@ -94,9 +94,8 @@ export const fetchExternalIcs = async (urls: string[]): Promise<EventInput[]> =>
                 const allDay = next.isDate ?? false;
                 results.push(buildEventInput(event.summary, startDate, endDate, allDay, url, now));
               }
-            } catch (recurErr) {
+            } catch {
               // If recurrence expansion fails, fall back to single event
-              console.warn("Recurrence expansion failed, using single event", recurErr);
               const startDate = event.startDate.toJSDate();
               if (inWindow(startDate, windowStart, windowEnd)) {
                 const endDate = event.endDate?.toJSDate?.() ?? null;
@@ -111,17 +110,14 @@ export const fetchExternalIcs = async (urls: string[]): Promise<EventInput[]> =>
             const allDay = event.startDate.isDate ?? false;
             results.push(buildEventInput(event.summary, startDate, endDate, allDay, url, now));
           }
-        } catch (eventErr) {
+        } catch {
           // Skip malformed events
-          console.warn("Skipping malformed event", eventErr);
         }
       }
-    } catch (err) {
-      console.error("Failed to fetch ICS", url, err);
+    } catch {
     }
   });
 
   await Promise.all(fetches);
   return results;
 };
-

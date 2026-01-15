@@ -187,7 +187,6 @@ const initializeToolbar = () => {
     `,
   });
 
-  console.log("Toolbar icon registered:", iconName);
 };
 
 // Persistence

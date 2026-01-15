@@ -44,8 +44,7 @@ export function useInlineEdit(onSaveComplete: () => void): UseInlineEditReturn {
         // Focus input after render
         setTimeout(() => editInputRef.current?.focus(), 50);
       }
-    } catch (error) {
-      console.error("Error entering edit mode:", error);
+    } catch {
     }
   }, []);
 
@@ -80,7 +79,6 @@ export function useInlineEdit(onSaveComplete: () => void): UseInlineEditReturn {
       logseq.UI.showMsg("Event updated", "success");
       onSaveComplete();
     } catch (error) {
-      console.error("Error updating event:", error);
       logseq.UI.showMsg(`Error updating event: ${error}`, "error");
     } finally {
       setEditingEventId(null);

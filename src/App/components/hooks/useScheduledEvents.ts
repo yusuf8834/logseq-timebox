@@ -238,8 +238,7 @@ export function useScheduledEvents(): UseScheduledEventsReturn {
       }
 
       setEvents([...calendarEvents, ...externalEvents]);
-    } catch (error) {
-      console.error("Error loading scheduled events:", error);
+    } catch {
     }
   }, [externalVisible]);
 

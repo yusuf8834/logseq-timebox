@@ -21,7 +21,6 @@ import { CalendarEventContent } from "./CalendarEventContent";
 import { CalendarToolbar } from "./CalendarToolbar";
 import { useScheduledEvents } from "./hooks/useScheduledEvents";
 import { useInlineEdit } from "./hooks/useInlineEdit";
-import { useFullscreen } from "./hooks/useFullscreen";
 
 interface CalendarViewProps {
   onTogglePosition?: () => void;
@@ -35,9 +34,6 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   const [currentView, setCurrentView] = useState<CalendarViewType>("timeGridDay");
   const calendarRef = useRef<FullCalendar>(null);
   const [isCreatingBlock, setIsCreatingBlock] = useState(false);
-  
-  // Use fullscreen hook
-  const { isFullscreen, exitFullscreen, toggleFullscreen } = useFullscreen();
   
   // Use the scheduled events hook
   const { events, externalVisible, setExternalVisible, refreshEvents, setIsDragging, updateEventOptimistically } = useScheduledEvents();
@@ -153,27 +149,22 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
         logseq.UI.showMsg("Failed to create block", "error");
       }
     } catch (error) {
-      console.error("Error creating block:", error);
       logseq.UI.showMsg(`Error: ${error}`, "error");
     } finally {
       setIsCreatingBlock(false);
     }
   }, [isCreatingBlock, refreshEvents]);
 
-  // Allow ESC to save edit or exit fullscreen
+  // Allow ESC to save edit
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (editingEventId) {
-          handleSaveEdit();
-        } else if (isFullscreen) {
-          exitFullscreen();
-        }
+      if (e.key === "Escape" && editingEventId) {
+        handleSaveEdit();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isFullscreen, editingEventId, handleSaveEdit, exitFullscreen]);
+  }, [editingEventId, handleSaveEdit]);
 
   // Cleanup click timeout on unmount
   useEffect(() => {
@@ -221,8 +212,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           await logseq.Editor.scrollToBlockInPage(pageName, blockUuid);
         }
       }
-    } catch (error) {
-      console.error("Error navigating to block:", error);
+    } catch {
     }
   }, []);
 
@@ -318,7 +308,6 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       // Reload events to reflect changes
       refreshEvents();
     } catch (error) {
-      console.error("Error moving event:", error);
       logseq.UI.showMsg(`Error moving event: ${error}`, "error");
       refreshEvents();
     }
@@ -472,7 +461,6 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       // Reload events to reflect changes
       refreshEvents();
     } catch (error) {
-      console.error("Error resizing event:", error);
       logseq.UI.showMsg(`Error resizing event: ${error}`, "error");
       resizeInfo.revert();
       refreshEvents();
@@ -507,7 +495,6 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       // Reload events to reflect changes
       refreshEvents();
     } catch (error) {
-      console.error("Error clearing schedule:", error);
       logseq.UI.showMsg(`Error clearing schedule: ${error}`, "error");
     }
   }, [refreshEvents]);
@@ -570,15 +557,13 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   }, [multiDaySpan]); 
 
   return (
-    <div className="flex flex-col h-full" style={isFullscreen ? { marginLeft: '25%', marginRight: '25%', marginTop: 10, marginBottom: 10 } : undefined}>
+    <div className="flex flex-col h-full">
       <CalendarToolbar
         currentView={currentView}
         multiDaySpan={multiDaySpan}
-        isFullscreen={isFullscreen}
         position={position}
         externalVisible={externalVisible}
         onRefresh={refreshEvents}
-        onToggleFullscreen={toggleFullscreen}
         onTogglePosition={onTogglePosition}
         onToggleExternal={() => setExternalVisible((prev) => !prev)}
         onPrev={handlePrev}

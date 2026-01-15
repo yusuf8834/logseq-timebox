@@ -8,9 +8,7 @@ import { initializeSidebarStuff } from "./sidebar-stuff.ts";
 // Custom event name for database changes - used to notify React components
 export const DB_CHANGED_EVENT = "logseq-timebox-db-changed";
 
-const main = async (baseInfo?: { effect?: boolean }) => {
-  console.log("effect baseInfo:", baseInfo?.effect);
-  console.log("effect getter:", (logseq as { effect?: boolean }).effect);
+const main = async () => {
   logseq.useSettingsSchema([
     {
       key: "startOfDayHour",
@@ -68,7 +66,6 @@ const main = async (baseInfo?: { effect?: boolean }) => {
     },
   ]);
 
-  console.log("Initializing simple sidebar plugin...");
   initializeSidebarStuff();
 
   // Set up database change listener in the main plugin context
@@ -83,11 +80,9 @@ const main = async (baseInfo?: { effect?: boolean }) => {
     }, 300);
   });
 
-  console.log("Simple sidebar plugin initialized");
 };
 
 logseq.ready(main).catch((e) => {
-  console.error("Error initializing plugin:", e);
   logseq.UI.showMsg(`${e ?? ""}`, "error");
 });
 
