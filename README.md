@@ -16,7 +16,7 @@ A calendar sidebar plugin for Logseq that lets you visualize and manage your sch
 - **Quick Create** - Click or drag on the calendar to create new scheduled tasks
 - **Inline Edit** - Edit task titles directly from the calendar
 - **Clear Schedule** - Remove scheduling from tasks with one click
-- **External Calendars (ICS)** - Overlay read-only events from external feeds
+- **External Calendars (ICS)** - Overlay read-only events from external feeds (requires manual installation)
 - **Refresh** - Manually refresh events
 - **Resizable Sidebar** - Drag to adjust the sidebar width
 - **Left/Right Position** - Toggle sidebar position
