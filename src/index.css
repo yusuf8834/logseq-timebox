@@ -27,6 +27,61 @@
   --color-logseq-cyan-950: oklch(0.248 0.044 217.5);
 }
 
+/* FullCalendar CSS Variables - Light Mode Only */
+:root {
+  /* Borders */
+  --fc-border-color: rgb(229 231 235);
+  
+  /* Today highlight */
+  --fc-today-bg-color: rgb(239 246 255);
+  
+  /* Column headers */
+  --fc-col-header-cell-bg-color: transparent;
+  --fc-col-header-cell-text-color: rgb(55 65 81);
+  
+  /* Day numbers and time labels */
+  --fc-daygrid-day-number-color: rgb(75 85 99);
+  --fc-timegrid-slot-label-color: rgb(75 85 99);
+  
+  /* Buttons */
+  --fc-button-bg-color: rgb(59 130 246);
+  --fc-button-border-color: rgb(37 99 235);
+  --fc-button-hover-bg-color: rgb(37 99 235);
+  --fc-button-hover-border-color: rgb(37 99 235);
+  --fc-button-active-bg-color: rgb(37 99 235);
+  --fc-button-active-border-color: rgb(37 99 235);
+  --fc-button-text-color: white;
+  
+  /* Events */
+  --fc-event-bg-color: rgb(59 130 246);
+  --fc-event-border-color: rgb(37 99 235);
+  --fc-event-text-color: white;
+  
+  /* Now indicator */
+  --fc-timegrid-now-indicator-color: rgb(239 68 68);
+}
+
+/* FullCalendar base styles */
+.fc {
+  height: 100%;
+  font-family: inherit;
+}
+
+.fc-header-toolbar {
+  display: none;
+}
+
+/* Column header styling */
+.fc-col-header-cell {
+  padding: 8px 4px;
+  font-weight: 500;
+}
+
+/* Now indicator line width */
+.fc-timegrid-now-indicator-line {
+  border-width: 2px;
+}
+
 /* External calendar events - dashed border */
 .fc-external-event {
   border-style: dashed !important;
@@ -36,5 +91,14 @@
 /* Past external events - faded */
 .fc-external-event-past {
   opacity: 0.5 !important;
+}
+
+/* Custom action buttons (edit/clear) */
+.fc-event:hover .fc-action-btn {
+  opacity: 1 !important;
+}
+
+.fc-action-btn:hover {
+  background-color: rgba(0,0,0,0.2) !important;
 }
 

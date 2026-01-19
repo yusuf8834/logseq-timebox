@@ -592,56 +592,6 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
 
       {/* Calendar */}
       <div className="flex-1 overflow-hidden p-4" onClick={handleCalendarClick}>
-        <style>{`
-          .fc {
-            height: 100%;
-            font-family: inherit;
-          }
-          .fc-header-toolbar {
-            display: none;
-          }
-          .fc-theme-standard td,
-          .fc-theme-standard th {
-            border-color: rgb(229 231 235);
-          }
-          .fc-day-today {
-            background-color: rgb(239 246 255) !important;
-          }
-          .fc-col-header-cell {
-            background-color: transparent;
-            padding: 8px 4px;
-            font-weight: 500;
-            color: rgb(55 65 81);
-          }
-          .fc-daygrid-day-number,
-          .fc-timegrid-slot-label {
-            color: rgb(75 85 99);
-          }
-          .fc-button {
-            background-color: rgb(59 130 246);
-            border-color: rgb(37 99 235);
-          }
-          .fc-button:hover {
-            background-color: rgb(37 99 235);
-          }
-          .fc-event {
-            background-color: rgb(59 130 246);
-            border-color: rgb(37 99 235);
-          }
-          .fc-timegrid-now-indicator-line {
-            border-color: rgb(239 68 68);
-            border-width: 2px;
-          }
-          .fc-timegrid-now-indicator-arrow {
-            border-color: rgb(239 68 68);
-          }
-          .fc-event:hover .fc-action-btn {
-            opacity: 1 !important;
-          }
-          .fc-action-btn:hover {
-            background-color: rgba(0,0,0,0.2) !important;
-          }
-        `}</style>
         <FullCalendar
           ref={calendarRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
