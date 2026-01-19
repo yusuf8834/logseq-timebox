@@ -604,15 +604,8 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           .fc-theme-standard th {
             border-color: rgb(229 231 235);
           }
-          .dark .fc-theme-standard td,
-          .dark .fc-theme-standard th {
-            border-color: rgba(134, 239, 172, 0.1);
-          }
           .fc-day-today {
             background-color: rgb(239 246 255) !important;
-          }
-          .dark .fc-day-today {
-            background-color: rgba(59, 130, 246, 0.1) !important;
           }
           .fc-col-header-cell {
             background-color: transparent;
@@ -620,16 +613,9 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
             font-weight: 500;
             color: rgb(55 65 81);
           }
-          .dark .fc-col-header-cell {
-            color: rgb(200, 210, 220);
-          }
           .fc-daygrid-day-number,
           .fc-timegrid-slot-label {
             color: rgb(75 85 99);
-          }
-          .dark .fc-daygrid-day-number,
-          .dark .fc-timegrid-slot-label {
-            color: rgb(156 163 175);
           }
           .fc-button {
             background-color: rgb(59 130 246);

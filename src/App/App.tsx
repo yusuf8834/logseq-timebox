@@ -39,7 +39,7 @@ function App() {
   }, []);
 
   return (
-    <aside className="simple-sidebar-plugin text-gray-800 dark:text-logseq-cyan-low-saturation-100 h-screen flex [&_a]:text-blue-600 [&_a]:dark:text-logseq-cyan-300">
+    <aside className="simple-sidebar-plugin text-gray-800 h-screen flex [&_a]:text-blue-600">
       {/* Resize handle on left when position is right */}
       {position === "right" && (
         <div
@@ -51,7 +51,7 @@ function App() {
           style={{ touchAction: "none", userSelect: "none" }}
         />
       )}
-      <section className={`bg-white dark:bg-logseq-cyan-low-saturation-950 h-full ${position === "left" ? "border-r" : "border-l"} border-gray-200 dark:border-logseq-cyan-low-saturation-800/70 flex flex-col overflow-hidden flex-1`} style={{ boxShadow: "0 0 15px 0 rgba(0, 0, 0, 0.15)" }}>
+      <section className={`bg-white h-full ${position === "left" ? "border-r" : "border-l"} border-gray-200 flex flex-col overflow-hidden flex-1`} style={{ boxShadow: "0 0 15px 0 rgba(0, 0, 0, 0.15)" }}>
         <CalendarView onTogglePosition={handleTogglePosition} position={position} />
       </section>
       {/* Resize handle on right when position is left */}
