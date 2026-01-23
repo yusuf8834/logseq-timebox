@@ -6,9 +6,5 @@ examples/
 notes/
 .cursor/
 logseq-marketplace/
-
-# Synced but never committed
-artifacts/
-data/
-deneme/
-hatta/
+ai
+agents.md

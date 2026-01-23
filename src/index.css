@@ -96,9 +96,6 @@
 /* Custom action buttons (edit/clear) */
 .fc-event:hover .fc-action-btn {
   opacity: 1 !important;
-}
-
-.fc-action-btn:hover {
+}.fc-action-btn:hover {
   background-color: rgba(0,0,0,0.2) !important;
 }
-

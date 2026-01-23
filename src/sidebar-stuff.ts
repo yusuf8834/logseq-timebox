@@ -102,7 +102,7 @@ const setMainUIStyle = (width: number, position: "left" | "right") => {
 
   logseq.setMainUIInlineStyle({
     position: "absolute",
-    zIndex: 11,
+    zIndex: 5,
     width: px,
     top: headerHeight,
     left: position === "left" ? "0" : `calc(100vw - ${px})`,
