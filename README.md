@@ -35,10 +35,15 @@ A calendar sidebar plugin for Logseq that lets you visualize and manage your sch
 ![Timebox Demo 1](screenshots/Logseq_41hZXzuY0C.gif)
 
 ### More
+<details>
+<summary>More screenshots</summary>
+
 ![Timebox Screenshot 1](screenshots/Logseq_0FlJuWqvXH.png)
 ![Timebox Screenshot 2](screenshots/Logseq_JHWzE9ZezY.png)
 ![Timebox Screenshot 3](screenshots/Logseq_mRFV5tLbzA.png)
 ![Timebox Screenshot 4](screenshots/Logseq_vs6QZ9xIcI.png)
+
+</details>
 
 
 ## Installation
