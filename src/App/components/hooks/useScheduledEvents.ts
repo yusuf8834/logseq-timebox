@@ -20,6 +20,9 @@ interface PendingUpdate {
 /** Logseq priority token on a block (e.g. `[#A]`). */
 const hasPriorityA = (text: string) => /\[#A\]/i.test(text);
 
+/** Markers where [#A] should use the high-priority red palette (NOW uses same color as DOING, not this branch). */
+const priorityARedMarkers = new Set<string>(["TODO", "LATER"]);
+
 const parseScheduledTime = (content: string): ScheduledInfo | null => {
   // Parse SCHEDULED: <YYYY-MM-DD ddd HH:mm> or SCHEDULED: <YYYY-MM-DD ddd>
   const scheduledMatch = content.match(/SCHEDULED:\s*<([^>]+)>/);
@@ -173,20 +176,26 @@ export function useScheduledEvents(): UseScheduledEventsReturn {
             event.backgroundColor = "#d1f4d1";
             event.borderColor = "#a3e4a3";
             event.textColor = "#2d5f2d";
-          } else if (block.marker === "DOING") {
+          } else if (block.marker === "CANCELED") {
+            event.backgroundColor = "#e5e7eb";
+            event.borderColor = "#9ca3af";
+            event.textColor = "#374151";
+          } else if (block.marker === "DOING" || block.marker === "NOW") {
+            // In progress — same palette for DOING (classic) and NOW (NOW/LATER workflow)
             event.backgroundColor = "#ffe4cc";
             event.borderColor = "#ffb366";
             event.textColor = "#994d00";
           } else if (
-            block.marker === "TODO" &&
+            block.marker &&
+            priorityARedMarkers.has(block.marker) &&
             (hasPriorityA(cleanTitle) || hasPriorityA(block.content || ""))
           ) {
-            // High-priority [#A] — red only in TODO state (not DOING/DONE)
+            // High-priority [#A] — red for TODO / LATER (not DOING/NOW/DONE)
             event.backgroundColor = "#fecaca";
             event.borderColor = "#f87171";
             event.textColor = "#7f1d1d";
           } else {
-            // Sweet blue for all other tasks (TODO, NOW, etc.)
+            // Sweet blue for all other tasks (e.g. WAITING, plain TODO without [#A])
             event.backgroundColor = "#cce7ff";
             event.borderColor = "#66b3ff";
             event.textColor = "#004d99";
