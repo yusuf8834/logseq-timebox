@@ -17,6 +17,9 @@ interface PendingUpdate {
   timestamp: number;
 }
 
+/** Logseq priority token on a block (e.g. `[#A]`). */
+const hasPriorityA = (text: string) => /\[#A\]/i.test(text);
+
 const parseScheduledTime = (content: string): ScheduledInfo | null => {
   // Parse SCHEDULED: <YYYY-MM-DD ddd HH:mm> or SCHEDULED: <YYYY-MM-DD ddd>
   const scheduledMatch = content.match(/SCHEDULED:\s*<([^>]+)>/);
@@ -171,6 +174,14 @@ export function useScheduledEvents(): UseScheduledEventsReturn {
             event.backgroundColor = "#ffe4cc";
             event.borderColor = "#ffb366";
             event.textColor = "#994d00";
+          } else if (
+            block.marker === "TODO" &&
+            (hasPriorityA(cleanTitle) || hasPriorityA(block.content || ""))
+          ) {
+            // High-priority [#A] — red only in TODO state (not DOING/DONE)
+            event.backgroundColor = "#fecaca";
+            event.borderColor = "#f87171";
+            event.textColor = "#7f1d1d";
           } else {
             // Sweet blue for all other tasks (TODO, NOW, etc.)
             event.backgroundColor = "#cce7ff";
