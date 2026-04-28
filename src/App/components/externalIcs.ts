@@ -2,6 +2,22 @@ import * as ICALRaw from "ical.js";
 const ICAL: any = (ICALRaw as any)?.default ?? ICALRaw;
 import type { EventInput } from "@fullcalendar/core";
 
+/**
+ * Load remote ICS text. Prefer Logseq's host-proxied request so marketplace
+ * plugins work without `effect: true` (plain iframe `fetch` is often blocked).
+ */
+async function fetchIcsText(url: string): Promise<string> {
+  const req = (typeof logseq !== "undefined" && logseq?.Request?._request) as
+    | ((opts: { url: string; method: "GET"; returnType: "text" }) => Promise<string>)
+    | undefined;
+  if (req) {
+    return req({ url, method: "GET", returnType: "text" });
+  }
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.text();
+}
+
 const EXTERNAL_BG = "#fce7ff";
 const EXTERNAL_BORDER = "#f3c4ff";
 const EXTERNAL_TEXT = "#5b1b73";
@@ -44,9 +60,7 @@ export const fetchExternalIcs = async (urls: string[]): Promise<EventInput[]> =>
 
   const fetches = uniqueUrls.map(async (url) => {
     try {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const text = await res.text();
+      const text = await fetchIcsText(url);
       if (!text || !text.trim()) return;
 
       const jcalData = ICAL.parse(text);
