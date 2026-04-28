@@ -31,6 +31,9 @@ export const CalendarEventContent: React.FC<CalendarEventContentProps> = ({
 }) => {
   const blockUuid = eventInfo.event.extendedProps.blockUuid;
   const isExternal = eventInfo.event.extendedProps?.source === "external";
+  const recurringPattern = eventInfo.event.extendedProps?.recurringPattern as
+    | string
+    | undefined;
   const fullTitle = eventInfo.event.title;
   const displayTitle = collapseNamespacesInTitle(fullTitle);
   const isEditing = editingEventId === blockUuid;
@@ -110,15 +113,58 @@ export const CalendarEventContent: React.FC<CalendarEventContentProps> = ({
       onMouseEnter={() => setHoveredEventId(blockUuid)}
       onMouseLeave={() => setHoveredEventId(null)}
     >
-      <div style={{ 
-        flex: 1, 
-        overflow: 'hidden', 
-        wordBreak: 'break-word',
-        overflowWrap: 'anywhere',
-        whiteSpace: 'normal',
-        lineHeight: '1.2'
-      }}>
-        <span>{displayTitle}</span>
+      {/* No overflow:hidden here: it creates a BFC and keeps *all* title lines in the narrow column beside the float icon. */}
+      <div
+        style={{
+          flex: 1,
+          minWidth: 0,
+          lineHeight: "1.2",
+        }}
+      >
+        {recurringPattern && !isExternal ? (
+          <span
+            className="fc-event-recurring-icon"
+            title={`Repeats ${recurringPattern}`}
+            role="img"
+            aria-label={`Repeating ${recurringPattern}`}
+            style={{
+              float: "left",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "13px",
+              marginTop: "1px",
+              marginRight: "4px",
+              opacity: 0.88,
+            }}
+          >
+            <svg
+              width="11"
+              height="11"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.25"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M17 1l4 4-4 4" />
+              <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+              <path d="M7 23l-4-4 4-4" />
+              <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+            </svg>
+          </span>
+        ) : null}
+        <span
+          style={{
+            display: "block",
+            wordBreak: "break-word",
+            overflowWrap: "anywhere",
+            whiteSpace: "normal",
+          }}
+        >
+          {displayTitle}
+        </span>
       </div>
       {!isExternal && (
         <div 

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { EventInput } from "@fullcalendar/core";
 import { DB_CHANGED_EVENT } from "../../../main";
-import { parseDurationToken } from "../calendarUtils";
+import { parseDurationToken, parseRepeater } from "../calendarUtils";
 import { fetchExternalIcs } from "../externalIcs";
 
 interface ScheduledInfo {
@@ -154,6 +154,8 @@ export function useScheduledEvents(): UseScheduledEventsReturn {
           ) || "Untitled";
           const cleanTitle = title.replace(/^\[(TODO|DOING|NOW|LATER|WAITING|DONE|CANCELED)\]\s*/, "").trim();
 
+          const recurringPattern = parseRepeater(block.content || "");
+
           const event: EventInput = {
             id: block.uuid,
             title: cleanTitle,
@@ -162,6 +164,7 @@ export function useScheduledEvents(): UseScheduledEventsReturn {
             extendedProps: {
               blockUuid: block.uuid,
               marker: block.marker,
+              ...(recurringPattern ? { recurringPattern } : {}),
             },
           };
 
