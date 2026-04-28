@@ -120,3 +120,46 @@ export const updateDurationTokenInContent = (content: string, minutes: number | 
   return lines.join("\n");
 };
 
+export type ClickAction = "none" | "edit" | "goto" | "cycleStatus";
+
+export const isClickAction = (raw: unknown): raw is ClickAction =>
+  raw === "none" || raw === "edit" || raw === "goto" || raw === "cycleStatus";
+
+/** Cycle TODO → DOING → DONE → TODO (other markers jump into DOING first). */
+export const nextTriCycleMarker = (marker: string | undefined | null): "TODO" | "DOING" | "DONE" => {
+  const m = (marker || "").toUpperCase();
+  if (m === "TODO") return "DOING";
+  if (m === "DOING") return "DONE";
+  if (m === "DONE") return "TODO";
+  return "DOING";
+};
+
+const TITLE_LINE_MARKER_BRACKET = /^\s*\[(TODO|DOING|NOW|LATER|WAITING|DONE|CANCELED)\]\s*/i;
+const TITLE_LINE_MARKER_PREFIX = /^\s*(TODO|DOING|NOW|LATER|WAITING|DONE|CANCELED)(?=\s|$)/i;
+
+/** Replace task marker on the first title line with a TODO/DOING/DONE marker (Logseq bracket or word prefix). */
+export const applyTriCycleMarkerToContent = (
+  content: string,
+  newMarker: "TODO" | "DOING" | "DONE",
+): string => {
+  const lines = (content || "").split("\n");
+  const titleIdx = lines.findIndex(
+    (line) => !line.trimStart().startsWith("SCHEDULED:") && !line.trimStart().startsWith("DEADLINE:"),
+  );
+  if (titleIdx === -1) return content || "";
+
+  const line = lines[titleIdx];
+  if (TITLE_LINE_MARKER_BRACKET.test(line)) {
+    lines[titleIdx] = line.replace(TITLE_LINE_MARKER_BRACKET, `[${newMarker}] `);
+    return lines.join("\n");
+  }
+  if (TITLE_LINE_MARKER_PREFIX.test(line)) {
+    lines[titleIdx] = line.replace(TITLE_LINE_MARKER_PREFIX, newMarker);
+    return lines.join("\n");
+  }
+
+  const rest = line.trimStart();
+  lines[titleIdx] = `${newMarker} ${rest}`;
+  return lines.join("\n");
+};
+

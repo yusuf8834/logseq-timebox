@@ -6,16 +6,20 @@ import interactionPlugin from "@fullcalendar/interaction";
 import type { DateSelectArg, EventClickArg, CalendarApi, EventContentArg, EventDropArg, ViewMountArg } from "@fullcalendar/core";
 import type { EventResizeDoneArg, EventDragStopArg } from "@fullcalendar/interaction";
 import { closeSidebar } from "../../sidebar-stuff";
-import { 
-  normalizeStartHour, 
-  normalizeFirstDay, 
-  normalizeMultiDaySpan, 
-  formatDateForJournal, 
-  formatScheduledDate, 
-  parseDurationToken, 
-  collapseNamespacesInTitle, 
-  parseRepeater, 
-  updateDurationTokenInContent 
+import {
+  normalizeStartHour,
+  normalizeFirstDay,
+  normalizeMultiDaySpan,
+  formatDateForJournal,
+  formatScheduledDate,
+  parseDurationToken,
+  collapseNamespacesInTitle,
+  parseRepeater,
+  updateDurationTokenInContent,
+  isClickAction,
+  nextTriCycleMarker,
+  applyTriCycleMarkerToContent,
+  type ClickAction,
 } from "./calendarUtils";
 import { CalendarEventContent } from "./CalendarEventContent";
 import { CalendarToolbar } from "./CalendarToolbar";
@@ -28,7 +32,7 @@ interface CalendarViewProps {
 }
 
 export type CalendarViewType = "dayGridMonth" | "timeGridWeek" | "timeGridDay" | "timeGridMulti";
-export type ClickAction = "none" | "edit" | "goto";
+export type { ClickAction } from "./calendarUtils";
 
 export function CalendarView({ onTogglePosition, position = "left" }: CalendarViewProps) {
   const [currentView, setCurrentView] = useState<CalendarViewType>("timeGridDay");
@@ -59,9 +63,15 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   const [firstDayOfWeek, setFirstDayOfWeek] = useState<number>(() => normalizeFirstDay((logseq as any)?.settings?.firstDayOfWeek));
   const [multiDaySpan, setMultiDaySpan] = useState<number>(() => normalizeMultiDaySpan((logseq as any)?.settings?.multiDayViewSpan));
   
-  // Click action settings
-  const [clickAction, setClickAction] = useState<ClickAction>(() => ((logseq as any)?.settings?.clickAction || "none") as ClickAction);
-  const [doubleClickAction, setDoubleClickAction] = useState<ClickAction>(() => ((logseq as any)?.settings?.doubleClickAction || "goto") as ClickAction);
+  // Click action settings (defaults: single → goto block, double → cycle TODO/DOING/DONE)
+  const [clickAction, setClickAction] = useState<ClickAction>(() => {
+    const raw = (logseq as any)?.settings?.clickAction;
+    return isClickAction(raw) ? raw : "goto";
+  });
+  const [doubleClickAction, setDoubleClickAction] = useState<ClickAction>(() => {
+    const raw = (logseq as any)?.settings?.doubleClickAction;
+    return isClickAction(raw) ? raw : "cycleStatus";
+  });
 
   useEffect(() => {
     const unsubscribe = logseq?.onSettingsChanged?.((newSettings: any) => {
@@ -75,10 +85,12 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
         setMultiDaySpan(normalizeMultiDaySpan(newSettings.multiDayViewSpan));
       }
       if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "clickAction")) {
-        setClickAction((newSettings.clickAction || "none") as ClickAction);
+        setClickAction(isClickAction(newSettings.clickAction) ? newSettings.clickAction : "goto");
       }
       if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "doubleClickAction")) {
-        setDoubleClickAction((newSettings.doubleClickAction || "goto") as ClickAction);
+        setDoubleClickAction(
+          isClickAction(newSettings.doubleClickAction) ? newSettings.doubleClickAction : "cycleStatus",
+        );
       }
     });
     return () => {
@@ -197,6 +209,20 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     getCalendarApi()?.unselect();
   }, [createBlockInDailyPage]);
 
+  const cycleBlockMarker = useCallback(async (blockUuid: string) => {
+    try {
+      const block = await logseq.Editor.getBlock(blockUuid);
+      if (!block) return;
+      const next = nextTriCycleMarker(block.marker as string | undefined);
+      const newContent = applyTriCycleMarkerToContent(block.content || "", next);
+      await logseq.Editor.updateBlock(blockUuid, newContent);
+      logseq.UI.showMsg(`Status: ${next}`, "success");
+      refreshEvents();
+    } catch (error) {
+      logseq.UI.showMsg(`Error updating status: ${error}`, "error");
+    }
+  }, [refreshEvents]);
+
   // Navigate to block (used on double-click)
   const navigateToBlock = useCallback(async (blockUuid: string) => {
     try {
@@ -217,14 +243,19 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   }, []);
 
   // Perform action based on setting
-  const performAction = useCallback(async (action: ClickAction, blockUuid: string) => {
-    if (action === "edit") {
-      await enterEditMode(blockUuid);
-    } else if (action === "goto") {
-      await navigateToBlock(blockUuid);
-    }
-    // "none" does nothing
-  }, [enterEditMode, navigateToBlock]);
+  const performAction = useCallback(
+    async (action: ClickAction, blockUuid: string) => {
+      if (action === "edit") {
+        await enterEditMode(blockUuid);
+      } else if (action === "goto") {
+        await navigateToBlock(blockUuid);
+      } else if (action === "cycleStatus") {
+        await cycleBlockMarker(blockUuid);
+      }
+      // "none" does nothing
+    },
+    [enterEditMode, navigateToBlock, cycleBlockMarker],
+  );
 
   const handleEventClick = useCallback(async (clickInfo: EventClickArg) => {
     const blockUuid = clickInfo.event.extendedProps.blockUuid;

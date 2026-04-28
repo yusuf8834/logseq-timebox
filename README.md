@@ -68,7 +68,7 @@ A calendar sidebar plugin for Logseq that lets you visualize and manage your sch
 4. **Create tasks**: Click on a time slot or drag to select a time range
 5. **Move tasks**: Drag and drop events to reschedule
 6. **Resize tasks**: Drag the bottom edge of an event to change duration
-7. **Edit tasks**: Click the pencil icon on an event (or use configured click actions)
+7. **Edit tasks**: Click the pencil icon on an event (or set single/double click to `edit` in settings). By default, single click goes to the block and double click cycles status.
 8. **Clear schedule**: Hover over an event and click the X button
 9. **External calendars**: Toggle "External on/off" and use Refresh when needed
 10. **Navigate**: Use the arrow buttons or "Today" to navigate dates
@@ -80,8 +80,8 @@ Open settings via the gear icon in the toolbar or `...` → `Plugins` → `Setti
 - **Start of day hour (0-23)**: Earliest hour shown in day/week/multi-day views
 - **First day of week (0-6)**: 0 = Sunday, 1 = Monday, ... 6 = Saturday
 - **Multi-day view length (days)**: Number of days shown in the multi-day view (min 2, max 14)
-- **Single click action**: `none`, `edit`, or `goto`
-- **Double click action**: `none`, `edit`, or `goto`
+- **Single click action**: `none`, `edit`, `goto` (open block in Logseq), or `cycleStatus` (rotate TODO / DOING / DONE). Default: `goto`.
+- **Double click action**: Same choices. Default: `cycleStatus` (TODO → DOING → DONE → TODO).
 - **External calendar ICS URLs**: One URL per line (read-only overlays)
 - **Show external calendars by default**: Initial visibility for ICS events
 
