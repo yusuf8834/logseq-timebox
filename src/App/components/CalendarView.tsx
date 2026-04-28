@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -19,7 +19,12 @@ import {
   isClickAction,
   nextTriCycleMarker,
   applyTriCycleMarkerToContent,
+  loadStoredCalendarView,
+  persistCalendarView,
+  loadStoredCalendarDate,
+  persistCalendarDate,
   type ClickAction,
+  type CalendarViewType,
 } from "./calendarUtils";
 import { CalendarEventContent } from "./CalendarEventContent";
 import { CalendarToolbar } from "./CalendarToolbar";
@@ -31,11 +36,26 @@ interface CalendarViewProps {
   position?: "left" | "right";
 }
 
-export type CalendarViewType = "dayGridMonth" | "timeGridWeek" | "timeGridDay" | "timeGridMulti";
-export type { ClickAction } from "./calendarUtils";
+export type { ClickAction, CalendarViewType } from "./calendarUtils";
+
+const clickActionDescription = (a: ClickAction): string => {
+  switch (a) {
+    case "none":
+      return "do nothing";
+    case "edit":
+      return "edit title in place";
+    case "goto":
+      return "open block in Logseq";
+    case "cycleStatus":
+      return "cycle marker (TODO → DOING → DONE)";
+  }
+};
 
 export function CalendarView({ onTogglePosition, position = "left" }: CalendarViewProps) {
-  const [currentView, setCurrentView] = useState<CalendarViewType>("timeGridDay");
+  const [currentView, setCurrentView] = useState<CalendarViewType>(
+    () => loadStoredCalendarView() ?? "timeGridDay",
+  );
+  const [calendarInitialDate] = useState<Date>(() => loadStoredCalendarDate() ?? new Date());
   const calendarRef = useRef<FullCalendar>(null);
   const [isCreatingBlock, setIsCreatingBlock] = useState(false);
   
@@ -72,6 +92,16 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     const raw = (logseq as any)?.settings?.doubleClickAction;
     return isClickAction(raw) ? raw : "cycleStatus";
   });
+
+  const eventInteractionHint = useMemo(
+    () =>
+      `Calendar: single-click — ${clickActionDescription(clickAction)}; double-click — ${clickActionDescription(doubleClickAction)}.`,
+    [clickAction, doubleClickAction],
+  );
+
+  useEffect(() => {
+    persistCalendarView(currentView);
+  }, [currentView]);
 
   useEffect(() => {
     const unsubscribe = logseq?.onSettingsChanged?.((newSettings: any) => {
@@ -530,21 +560,35 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     }
   }, [refreshEvents]);
 
-  const renderEventContent = useCallback((eventInfo: EventContentArg) => (
-    <CalendarEventContent
-      eventInfo={eventInfo}
-      editingEventId={editingEventId}
-      editingText={editingText}
-      editInputRef={editInputRef}
-      hoveredEventId={hoveredEventId}
-      setHoveredEventId={setHoveredEventId}
-      setEditingText={setEditingText}
-      handleSaveEdit={handleSaveEdit}
-      handleClearSchedule={handleClearSchedule}
-      handleEditClick={handleEditClick}
-      collapseNamespacesInTitle={collapseNamespacesInTitle}
-    />
-  ), [editingEventId, editingText, hoveredEventId, handleSaveEdit, handleClearSchedule, handleEditClick]);
+  const renderEventContent = useCallback(
+    (eventInfo: EventContentArg) => (
+      <CalendarEventContent
+        eventInfo={eventInfo}
+        editingEventId={editingEventId}
+        editingText={editingText}
+        editInputRef={editInputRef}
+        hoveredEventId={hoveredEventId}
+        setHoveredEventId={setHoveredEventId}
+        setEditingText={setEditingText}
+        handleSaveEdit={handleSaveEdit}
+        handleClearSchedule={handleClearSchedule}
+        handleEditClick={handleEditClick}
+        collapseNamespacesInTitle={collapseNamespacesInTitle}
+        eventInteractionHint={
+          eventInfo.event.extendedProps?.source === "external" ? undefined : eventInteractionHint
+        }
+      />
+    ),
+    [
+      editingEventId,
+      editingText,
+      hoveredEventId,
+      handleSaveEdit,
+      handleClearSchedule,
+      handleEditClick,
+      eventInteractionHint,
+    ],
+  );
 
   const getCalendarApi = (): CalendarApi | null => {
     return calendarRef.current?.getApi() || null;
@@ -581,11 +625,20 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   };
 
   useEffect(() => {
-    if (currentView === "timeGridMulti") {
-      getCalendarApi()?.changeView("timeGridMulti");
-      goToTodayMinusOne();
-    }
-  }, [multiDaySpan]); 
+    if (currentView !== "timeGridMulti") return;
+    let attempts = 0;
+    const applyMultiDuration = () => {
+      const api = getCalendarApi();
+      if (api) {
+        const cur = api.getDate();
+        api.changeView("timeGridMulti", cur);
+        return;
+      }
+      attempts += 1;
+      if (attempts < 24) requestAnimationFrame(applyMultiDuration);
+    };
+    requestAnimationFrame(applyMultiDuration);
+  }, [multiDaySpan, currentView]);
 
   return (
     <div className="flex flex-col h-full">
@@ -627,6 +680,7 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           ref={calendarRef}
           plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView={currentView}
+          initialDate={calendarInitialDate}
           headerToolbar={false}
           height="100%"
           selectable={true}
@@ -679,11 +733,11 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           eventResize={handleEventResize}
           eventContent={renderEventContent}
           events={events}
+          datesSet={(arg) => {
+            persistCalendarDate(arg.view.calendar.getDate());
+          }}
           viewDidMount={(arg: ViewMountArg) => {
             setCurrentView(arg.view.type as CalendarViewType);
-            if (arg.view.type === "timeGridMulti") {
-              goToTodayMinusOne();
-            }
           }}
         />
       </div>

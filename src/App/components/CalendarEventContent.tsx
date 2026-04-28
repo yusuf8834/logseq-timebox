@@ -14,6 +14,8 @@ export interface CalendarEventContentProps {
   handleClearSchedule: (blockUuid: string, e: React.MouseEvent) => void;
   handleEditClick: (blockUuid: string, e: React.MouseEvent) => void;
   collapseNamespacesInTitle: (title: string) => string;
+  /** Appended to native tooltip for scheduled blocks (single/double-click behavior). */
+  eventInteractionHint?: string;
 }
 
 export const CalendarEventContent: React.FC<CalendarEventContentProps> = ({
@@ -28,6 +30,7 @@ export const CalendarEventContent: React.FC<CalendarEventContentProps> = ({
   handleClearSchedule,
   handleEditClick,
   collapseNamespacesInTitle,
+  eventInteractionHint,
 }) => {
   const blockUuid = eventInfo.event.extendedProps.blockUuid;
   const isExternal = eventInfo.event.extendedProps?.source === "external";
@@ -37,6 +40,10 @@ export const CalendarEventContent: React.FC<CalendarEventContentProps> = ({
   const fullTitle = eventInfo.event.title;
   const displayTitle = collapseNamespacesInTitle(fullTitle);
   const isEditing = editingEventId === blockUuid;
+  const eventTooltip =
+    !isExternal && eventInteractionHint
+      ? `${fullTitle}\n\n${eventInteractionHint}`
+      : fullTitle;
 
   if (isEditing) {
     return (
@@ -100,7 +107,7 @@ export const CalendarEventContent: React.FC<CalendarEventContentProps> = ({
   return (
     <div 
       className="fc-event-content-wrapper" 
-      title={fullTitle} 
+      title={eventTooltip} 
       style={{ 
         display: 'flex', 
         alignItems: 'flex-start', 
@@ -185,7 +192,8 @@ export const CalendarEventContent: React.FC<CalendarEventContentProps> = ({
           <button
             onClick={(e) => handleClearSchedule(blockUuid, e)}
             className="fc-action-btn"
-            title="Clear schedule"
+            title="Clear schedule — removes SCHEDULED line (block stays; other lines unchanged)"
+            aria-label="Clear schedule"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -206,7 +214,8 @@ export const CalendarEventContent: React.FC<CalendarEventContentProps> = ({
           <button
             onClick={(e) => handleEditClick(blockUuid, e)}
             className="fc-action-btn"
-            title="Edit"
+            title="Inline edit — change the title line without leaving the calendar"
+            aria-label="Edit title"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -229,4 +238,3 @@ export const CalendarEventContent: React.FC<CalendarEventContentProps> = ({
     </div>
   );
 };
-

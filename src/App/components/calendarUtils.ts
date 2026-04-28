@@ -1,5 +1,51 @@
 // Utility helpers extracted from CalendarView
 
+import packageJson from "../../../package.json" with { type: "json" };
+
+const LAST_CAL_VIEW_KEY = `${packageJson.logseq.id}-calendar-last-view`;
+const LAST_CAL_DATE_KEY = `${packageJson.logseq.id}-calendar-last-date`;
+
+export type CalendarViewType = "dayGridMonth" | "timeGridWeek" | "timeGridDay" | "timeGridMulti";
+
+export const loadStoredCalendarView = (): CalendarViewType | null => {
+  try {
+    const v = localStorage.getItem(LAST_CAL_VIEW_KEY);
+    if (v === "dayGridMonth" || v === "timeGridWeek" || v === "timeGridDay" || v === "timeGridMulti") {
+      return v;
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+};
+
+export const persistCalendarView = (view: CalendarViewType) => {
+  try {
+    localStorage.setItem(LAST_CAL_VIEW_KEY, view);
+  } catch {
+    /* ignore */
+  }
+};
+
+export const loadStoredCalendarDate = (): Date | null => {
+  try {
+    const s = localStorage.getItem(LAST_CAL_DATE_KEY);
+    if (!s) return null;
+    const d = new Date(s);
+    return Number.isFinite(d.getTime()) ? d : null;
+  } catch {
+    return null;
+  }
+};
+
+export const persistCalendarDate = (d: Date) => {
+  try {
+    localStorage.setItem(LAST_CAL_DATE_KEY, d.toISOString());
+  } catch {
+    /* ignore */
+  }
+};
+
 export const normalizeStartHour = (raw: any): number => {
   const n = Number(raw);
   if (!Number.isFinite(n)) return 8;

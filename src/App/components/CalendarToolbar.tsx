@@ -1,5 +1,5 @@
 import React from "react";
-import type { CalendarViewType } from "./CalendarView";
+import type { CalendarViewType } from "./calendarUtils";
 
 interface CalendarToolbarProps {
   currentView: CalendarViewType;
@@ -56,7 +56,8 @@ export const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
         <button
           onClick={onRefresh}
           className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
-          title="Refresh events"
+          title="Refresh — reload scheduled blocks and external calendars from Logseq"
+          aria-label="Refresh calendar events"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
@@ -69,7 +70,8 @@ export const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
           <button
             onClick={onTogglePosition}
             className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
-            title={position === "left" ? "Move panel to right" : "Move panel to left"}
+            title={position === "left" ? "Dock sidebar on the right" : "Dock sidebar on the left"}
+            aria-label={position === "left" ? "Move panel to right" : "Move panel to left"}
           >
             {position === "left" ? (
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -87,7 +89,8 @@ export const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
         <button
           onClick={onToggleExternal}
           className={`px-2 py-1 text-xs font-medium rounded-md whitespace-nowrap ${externalVisible ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700"}`}
-          title="Toggle external calendars"
+          title="External calendars — show or hide read-only ICS events (URLs in plugin settings)"
+          aria-label="Toggle external ICS calendars"
         >
           External {externalVisible ? "on" : "off"}
         </button>
@@ -95,6 +98,8 @@ export const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
         <button
           onClick={onPrev}
           className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
+          title="Previous — one day in Day / Multi-day views; one step in Week / Month"
+          aria-label="Previous period"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M10 12 L6 8 L10 4" />
@@ -103,6 +108,8 @@ export const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
         <button
           onClick={onNext}
           className="p-1.5 rounded hover:bg-gray-200 text-gray-600"
+          title="Next — one day in Day / Multi-day views; one step in Week / Month"
+          aria-label="Next period"
         >
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M6 4 L10 8 L6 12" />
@@ -119,6 +126,8 @@ export const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
                 ? "bg-blue-100 text-blue-700"
                 : "text-gray-600 hover:bg-gray-100"
               }`}
+            title="Day view — single-day time grid"
+            type="button"
           >
             Day
           </button>
@@ -128,6 +137,8 @@ export const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
                 ? "bg-blue-100 text-blue-700"
                 : "text-gray-600 hover:bg-gray-100"
               }`}
+            title={`Multi-day view — ${multiDaySpan} consecutive days (change length in plugin settings)`}
+            type="button"
           >
             {multiDaySpan}d
           </button>
@@ -137,6 +148,8 @@ export const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
                 ? "bg-blue-100 text-blue-700"
                 : "text-gray-600 hover:bg-gray-100"
               }`}
+            title="Week view — seven-day time grid"
+            type="button"
           >
             Week
           </button>
@@ -146,6 +159,8 @@ export const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
                 ? "bg-blue-100 text-blue-700"
                 : "text-gray-600 hover:bg-gray-100"
               }`}
+            title="Month view — full month calendar"
+            type="button"
           >
             Month
           </button>
@@ -154,6 +169,8 @@ export const CalendarToolbar: React.FC<CalendarToolbarProps> = ({
         <button
           onClick={onToday}
           className="px-2 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200"
+          title="Today — scroll the calendar to the current date"
+          type="button"
         >
           Today
         </button>

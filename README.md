@@ -62,7 +62,7 @@ A calendar sidebar plugin for Logseq that lets you visualize and manage your sch
 
 ## Usage
 
-1. Click the calendar icon in the toolbar to open the sidebar
+1. Click the calendar icon in the toolbar to open the sidebar (the plugin remembers your last **view** and **date** between sessions)
 2. Use the settings (gear) button to configure view and behavior preferences
 3. **Switch views**: Use Day / Multi-day / Week / Month buttons (multi-day shows as `3d`, `4d`, etc.)
 4. **Create tasks**: Click on a time slot or drag to select a time range
