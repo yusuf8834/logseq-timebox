@@ -5,7 +5,13 @@ A calendar sidebar plugin for Logseq that lets you visualize and manage your sch
 
 > Important Reminders:
 >
-> This plugin is only tested on MD version. DB version is planned to be supported in the future.
+> This plugin is only for MD (Logseq-OG) version. DB version is planned to be supported in the future.
+
+## Layout and Logseq panels
+
+The Timebox sidebar is drawn as a **fixed overlay** on top of the graph. It does **not** plug into Logseq’s built-in left/right **panel** layout, so the default sidebars stay **under** the calendar in stacking order and can be **covered** while Timebox is open.
+
+**Workaround I prefer:** dock Timebox on the **left** and keep Logseq’s **left sidebar closed** when you want a clear calendar workspace. This stacking behavior is a **limitation of the extension’s integration model**, not a bug in Logseq or extension.
 
 ## Features
 
