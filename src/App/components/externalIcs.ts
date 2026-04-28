@@ -2,17 +2,45 @@ import * as ICALRaw from "ical.js";
 const ICAL: any = (ICALRaw as any)?.default ?? ICALRaw;
 import type { EventInput } from "@fullcalendar/core";
 
+/** Normalize host `Request` payload (shape varies by Logseq version). */
+function icsBodyFromRequestResult(raw: unknown): string | null {
+  if (raw == null) return null;
+  if (typeof raw === "string") return raw;
+  if (typeof raw === "object") {
+    const o = raw as Record<string, unknown>;
+    for (const k of ["body", "text", "data", "content"] as const) {
+      const v = o[k];
+      if (typeof v === "string" && v.length) return v;
+    }
+  }
+  return null;
+}
+
 /**
- * Load remote ICS text. Prefer Logseq's host-proxied request so marketplace
- * plugins work without `effect: true` (plain iframe `fetch` is often blocked).
+ * Load remote ICS text. Prefer Logseq's host-proxied `Request` (marketplace
+ * iframe often blocks plain `fetch`). Fall back to `fetch` when Request fails
+ * or returns an unexpected shape — needed for unpacked / dev and older hosts.
  */
 async function fetchIcsText(url: string): Promise<string> {
-  const req = (typeof logseq !== "undefined" && logseq?.Request?._request) as
-    | ((opts: { url: string; method: "GET"; returnType: "text" }) => Promise<string>)
-    | undefined;
-  if (req) {
-    return req({ url, method: "GET", returnType: "text" });
+  const reqFn =
+    typeof logseq !== "undefined" && typeof logseq.Request?._request === "function"
+      ? (logseq.Request._request as (opts: {
+          url: string;
+          method: "GET";
+          returnType: "text";
+        }) => Promise<unknown>)
+      : undefined;
+
+  if (reqFn) {
+    try {
+      const raw = await reqFn({ url, method: "GET", returnType: "text" });
+      const fromReq = icsBodyFromRequestResult(raw);
+      if (fromReq != null && fromReq.trim()) return fromReq;
+    } catch (e) {
+      console.warn("[logseq-timebox] ICS via logseq.Request failed, using fetch()", url, e);
+    }
   }
+
   const res = await fetch(url);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.text();
@@ -128,7 +156,8 @@ export const fetchExternalIcs = async (urls: string[]): Promise<EventInput[]> =>
           // Skip malformed events
         }
       }
-    } catch {
+    } catch (e) {
+      console.warn("[logseq-timebox] external ICS fetch/parse error", url, e);
     }
   });
 
