@@ -86,9 +86,11 @@ export const formatDateForJournal = (date: Date, format: string): string => {
     d: String(day),
     EEEE: date.toLocaleDateString("en-US", { weekday: "long" }),
     EEE: date.toLocaleDateString("en-US", { weekday: "short" }),
+    EE: date.toLocaleDateString("en-US", { weekday: "short" }),
+    E: date.toLocaleDateString("en-US", { weekday: "short" }),
   };
 
-  const regex = /yyyy|MMMM|MMM|MM|M|dd|do|d|EEEE|EEE/g;
+  const regex = /yyyy|MMMM|MMM|MM|M|dd|do|d|EEEE|EEE|EE|E/g;
 
   return format.replace(regex, (match) => tokens[match]);
 };
