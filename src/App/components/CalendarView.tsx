@@ -4,12 +4,14 @@ import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import type { DateSelectArg, EventClickArg, CalendarApi, EventContentArg, EventDropArg, ViewMountArg } from "@fullcalendar/core";
-import type { EventResizeDoneArg, EventDragStopArg } from "@fullcalendar/interaction";
+import type { DateClickArg, EventResizeDoneArg, EventDragStopArg } from "@fullcalendar/interaction";
 import { closeSidebar } from "../../sidebar-stuff";
 import {
   normalizeStartHour,
   normalizeFirstDay,
   normalizeMultiDaySpan,
+  normalizeDurationMinutes,
+  normalizeSnapInterval,
   collapseNamespacesInTitle,
   isClickAction,
   loadStoredCalendarView,
@@ -80,6 +82,9 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
   const [startOfDayHour, setStartOfDayHour] = useState<number>(() => normalizeStartHour((logseq as any)?.settings?.startOfDayHour));
   const [firstDayOfWeek, setFirstDayOfWeek] = useState<number>(() => normalizeFirstDay((logseq as any)?.settings?.firstDayOfWeek));
   const [multiDaySpan, setMultiDaySpan] = useState<number>(() => normalizeMultiDaySpan((logseq as any)?.settings?.multiDayViewSpan));
+  const [defaultEventDuration, setDefaultEventDuration] = useState<number>(() => normalizeDurationMinutes((logseq as any)?.settings?.defaultEventDurationMinutes, 60));
+  const [newTaskDuration, setNewTaskDuration] = useState<number>(() => normalizeDurationMinutes((logseq as any)?.settings?.newTaskDurationMinutes, 30));
+  const [snapInterval, setSnapInterval] = useState<number>(() => normalizeSnapInterval((logseq as any)?.settings?.snapIntervalMinutes));
   
   // Click action settings (defaults: single → goto block, double → cycle TODO/DOING/DONE)
   const [clickAction, setClickAction] = useState<ClickAction>(() => {
@@ -111,6 +116,15 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
       }
       if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "multiDayViewSpan")) {
         setMultiDaySpan(normalizeMultiDaySpan(newSettings.multiDayViewSpan));
+      }
+      if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "defaultEventDurationMinutes")) {
+        setDefaultEventDuration(normalizeDurationMinutes(newSettings.defaultEventDurationMinutes, 60));
+      }
+      if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "newTaskDurationMinutes")) {
+        setNewTaskDuration(normalizeDurationMinutes(newSettings.newTaskDurationMinutes, 30));
+      }
+      if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "snapIntervalMinutes")) {
+        setSnapInterval(normalizeSnapInterval(newSettings.snapIntervalMinutes));
       }
       if (newSettings && Object.prototype.hasOwnProperty.call(newSettings, "clickAction")) {
         setClickAction(isClickAction(newSettings.clickAction) ? newSettings.clickAction : "goto");
@@ -196,6 +210,12 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
     // Unselect after creating
     getCalendarApi()?.unselect();
   }, [createBlockInDailyPage]);
+
+  // A plain click never starts a selection (selectMinDistance), so it lands here with the new-task duration.
+  const handleDateClick = useCallback(async (info: DateClickArg) => {
+    const end = info.allDay ? undefined : new Date(info.date.getTime() + newTaskDuration * 60000);
+    await createBlockInDailyPage(info.date, info.allDay, end);
+  }, [createBlockInDailyPage, newTaskDuration]);
 
   const cycleBlockMarker = useCallback(async (blockUuid: string) => {
     try {
@@ -698,6 +718,8 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           selectable={true}
           selectMirror={true}
           dayMaxEvents={true}
+          defaultTimedEventDuration={{ minutes: defaultEventDuration }}
+          snapDuration={{ minutes: snapInterval }}
           weekends={true}
           editable={true}
           eventDragStart={(info) => {
@@ -740,6 +762,8 @@ export function CalendarView({ onTogglePosition, position = "left" }: CalendarVi
           slotMinTime={`${startOfDayHour.toString().padStart(2, '0')}:00:00`}
           scrollTime={`${startOfDayHour.toString().padStart(2, '0')}:00:00`}
           select={handleDateSelect}
+          selectMinDistance={5}
+          dateClick={handleDateClick}
           eventClick={handleEventClick}
           eventDrop={handleEventDrop}
           eventResize={handleEventResize}

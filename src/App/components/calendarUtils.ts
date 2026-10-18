@@ -64,6 +64,17 @@ export const normalizeMultiDaySpan = (raw: any): number => {
   return Math.min(14, Math.max(2, Math.floor(n)));
 };
 
+export const normalizeDurationMinutes = (raw: any, fallback: number): number => {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(480, Math.max(5, Math.floor(n)));
+};
+
+export const normalizeSnapInterval = (raw: any): number => {
+  const n = Number(raw);
+  return [5, 10, 15, 30].includes(n) ? n : 30;
+};
+
 export const formatDateForJournal = (date: Date, format: string): string => {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;

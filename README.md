@@ -87,6 +87,9 @@ Open settings via the gear icon in the toolbar or `...` → `Plugins` → `Setti
 - **Start of day hour (0-23)**: Earliest hour shown in day/week/multi-day views
 - **First day of week (0-6)**: 0 = Sunday, 1 = Monday, ... 6 = Saturday
 - **Multi-day view length (days)**: Number of days shown in the multi-day view (min 2, max 14)
+- **Default event duration (minutes)**: How long a scheduled task without a `[d:...]` token is drawn (min 5, max 480). Display only. Default: 60.
+- **New task duration (minutes)**: Length of a task created by clicking an empty time slot (min 5, max 480). Dragging across slots uses the dragged length. Default: 30.
+- **Snap interval (minutes)**: Step size for dragging, resizing and selecting in the time grid: `5`, `10`, `15` or `30`. Grid lines stay at 30 minutes. Default: `30`.
 - **Single click action**: `none`, `edit`, `goto` (open block in Logseq), or `cycleStatus` (rotate Todo → Doing → Done using the active graph's native status values). Default: `goto`.
 - **Double click action**: Same choices. Default: `cycleStatus` (Todo → Doing → Done → Todo; other statuses enter Doing first).
 - **External calendar ICS URLs**: One URL per line (read-only overlays)
