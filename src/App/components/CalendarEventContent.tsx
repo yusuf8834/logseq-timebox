@@ -40,6 +40,8 @@ export const CalendarEventContent: React.FC<CalendarEventContentProps> = ({
   const fullTitle = eventInfo.event.title;
   const displayTitle = collapseNamespacesInTitle(fullTitle);
   const isEditing = editingEventId === blockUuid;
+  // Day-grid chips (all-day row, month cells) have no fixed height, so wrapping titles grow the row.
+  const isDayGrid = eventInfo.event.allDay || eventInfo.view.type.startsWith("dayGrid");
   const eventTooltip =
     !isExternal && eventInteractionHint
       ? `${fullTitle}\n\n${eventInteractionHint}`
@@ -165,9 +167,9 @@ export const CalendarEventContent: React.FC<CalendarEventContentProps> = ({
         <span
           style={{
             display: "block",
-            wordBreak: "break-word",
-            overflowWrap: "anywhere",
-            whiteSpace: "normal",
+            ...(isDayGrid
+              ? { whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }
+              : { wordBreak: "break-word", overflowWrap: "anywhere", whiteSpace: "normal" }),
           }}
         >
           {displayTitle}
